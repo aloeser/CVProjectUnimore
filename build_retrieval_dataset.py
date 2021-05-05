@@ -9,7 +9,7 @@ import os
 # Returns a random coin
 def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 2, 1], data_path='data', side=None):
 
-    coin_values = {
+    coin_names = {
         200: '2',
         100: '1',
         50: '50ct',
@@ -20,8 +20,9 @@ def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 
         1: '1ct'
     }
     country = random.choice(countries)
-    coin_value = coin_values[random.choice(cents)]
-    path = os.path.join(data_path, country, coin_value)
+    coin_value = random.choice(cents)
+    coin_name = coin_names[coin_value]
+    path = os.path.join(data_path, country, coin_name)
 
     coin_files = [os.path.join(path, f) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
     if side is not None:
@@ -32,7 +33,7 @@ def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 
     print(f"'{side}' in {coin_file}")
     print(f"using {coin_file}")
 
-    return cv.imread(coin_file)
+    return coin_value, cv.imread(coin_file)
 
 def insert_coin_threshold_based(img1, y, x, img2, thresh1=10, thresh2=220):
     #cv.imshow('img1', img1)
@@ -141,10 +142,13 @@ def insert_pic(retrieval_img, coin_img, inverted_mask):
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
     # background = background():
     # pic = gen_pic(y,x,background)
-    retrieval_img = create_bgr_image(h, w, bg=(0, 255, 0))
+    background_color = (0, 255, 0)
+    retrieval_img = create_bgr_image(h, w, bg=background_color)
 
-    # label-list (empty)
-    labels = []
+    # label-list: a dictionary mapping coin cent values (integers) to their frequency,
+    # and a 'sum' field containing the accumulated value. We could calculate the sum on the fly from the dictionary too,
+    # but I'm lazy and one additional dictionary entry does not hurt
+    labels = {200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 2: 0, 1: 0, 'sum': 0, 'num_coins': 0, 'background': background_color}
 
     # coin_amt = gaussian(coin_amt_mean, var=1)
     coin_amt = coin_amt_mean
@@ -153,10 +157,12 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
     hashtag_coins = 0
     while hashtag_coins < coin_amt:
         # get coin from data
-        coin_img = random_coin(data_path=data_path, cents=[5,2,1])
+        coin_value, coin_img = random_coin(data_path=data_path, cents=[5,2,1])
 
         # add to label-list
-        # TODO
+        labels[coin_value] += 1
+        labels['sum'] += coin_value
+        labels['num_coins'] += 1
 
         # scale, rotate, remove background
         tmp, inv_mask = extract_rotated_resized_coin(coin_img)
