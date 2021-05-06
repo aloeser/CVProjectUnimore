@@ -183,9 +183,11 @@ def insert_pic(retrieval_img, coin_img, inverted_mask):
 
 
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
-    # background = background():
+    # background = background()    # for now: a random, 1-colored background
+    background_colors = [(0, 200, 0), (200, 0, 0), (0, 0, 200) ]
+    background_color = random.choice(background_colors)
+
     # pic = gen_pic(y,x,background)
-    background_color = (0, 255, 0)
     retrieval_img = create_bgr_image(h, w, bg=background_color)
 
     # label-list: a dictionary mapping coin cent values (integers) to their frequency,
