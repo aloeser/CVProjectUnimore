@@ -74,8 +74,46 @@ def create_bgr_image(height, width, bg=(0,0,0)):
     return img
 
 
-def extract_rotated_resized_coin(coin_img, y=64, x=64, phi=0):
-    pass
+def extract_rotated_resized_coin(inp_pic, y=64, x=64, phi=0):
+    # resize 250x250 to 64x64
+    r = x / y
+    dim = (x, int(x * r))
+    inp_pic_res = cv.resize(inp_pic, dim, interpolation=cv.INTER_AREA)
+    cv.imshow('inp_pic_res', inp_pic_res)
+
+    # rotation
+    matrix = cv.getRotationMatrix2D((x / 2, y / 2), phi, 1.0)
+    inp_pic_rot = cv.warpAffine(inp_pic_res, matrix, (x, y))
+    cv.imshow('inp_pic_rot', inp_pic_rot)
+
+    # hough circle detection
+    inp_pic_grey = cv.cvtColor(inp_pic_rot, cv.COLOR_BGR2GRAY)
+    inp_pic_grey = cv.GaussianBlur(inp_pic_grey, (3, 3), 1, 1)
+    cv.imshow('inp_pic_grey', inp_pic_grey)
+    # HoughCircles(image, method, dp, minDist, circles=None, param1=None, param2=None, minRadius=None, maxRadius=None)
+    circles = cv.HoughCircles(inp_pic_grey, cv.HOUGH_GRADIENT, dp=3, minDist=20, minRadius=25, maxRadius=35)
+
+    # draw circle in mask
+    mask = np.zeros((y, x, 3), np.uint8)
+    if (circles is not None):
+        if len(circles) == 1:
+            circles = np.round(circles[0, :].astype("int"))
+            x_, y_, r = circles[0]
+            cv.circle(mask, (x_, y_), r, (255, 255, 255), -1, 8, 0)
+            print('1 circle found. r: ', r)
+        else:
+            print('multiple circles.')
+    else:
+        print('no circle found.')
+
+    # with mask filter input pic and get inverted mask
+    cv.imshow('mask', mask)
+    mask = cv.cvtColor(mask, cv.COLOR_BGR2GRAY)
+    out_pic = cv.bitwise_and(inp_pic_rot, inp_pic_rot, mask=mask)
+    mask_inv = cv.bitwise_not(mask)
+
+    return out_pic, mask_inv
+
 
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
     # background = background():
