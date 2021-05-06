@@ -172,7 +172,14 @@ def insert_pic(retrieval_img, coin_img, inverted_mask):
     # Step 4: actually perform the insert - still hacky atm
     topleft_y = center_y - coin_radius
     topleft_x = center_x - coin_radius
-    insert_coin_threshold_based(retrieval_img, topleft_y, topleft_x, coin_img)
+
+    def insert_coin_to_position(target_img, y, x, coin_only_img, inverted_mask):
+        ch, cw, _ = coin_only_img.shape
+        background = cv.bitwise_and(target_img[y:y+ch, x:x+cw], target_img[y:y+ch, x:x+cw], mask=inverted_mask)
+        final_image = cv.add(coin_only_img, background)
+        target_img[y:y+ch, x:x+cw] = final_image
+
+    insert_coin_to_position(retrieval_img, topleft_y, topleft_x, coin_img, inverted_mask)
 
 
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
@@ -193,7 +200,7 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
     hashtag_coins = 0
     while hashtag_coins < coin_amt:
         # get coin from data
-        coin_value, coin_img = random_coin(data_path=data_path, cents=[5,2,1])
+        coin_value, coin_img = random_coin(data_path=data_path)
 
         # add to label-list
         labels[coin_value] += 1
@@ -219,7 +226,7 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
     return retrieval_img, labels
 
 def main():
-    img, _ = generate_retrieval_image(h=1000, w=1000, coin_amt_mean=5)
+    img, _ = generate_retrieval_image(h=256, w=256, coin_amt_mean=5)
     cv.imshow("result", img)
     cv.waitKey(0)
     cv.destroyAllWindows()
