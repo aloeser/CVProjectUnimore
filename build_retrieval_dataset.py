@@ -182,6 +182,22 @@ def insert_pic(retrieval_img, coin_img, inverted_mask):
     insert_coin_to_position(retrieval_img, topleft_y, topleft_x, coin_img, inverted_mask)
 
 
+"""
+Takes a retrieval image as input and returns a copy of the image, with an homographic transformation applied.
+By default, the output image has the same shape as the original image.
+"""
+def perform_homographic_transform(retrieval_img, target_shape = None):
+    h, w, _ = retrieval_img.shape
+    if target_shape is None:
+        target_shape = retrieval_img.shape[:2]
+    target_h, target_w = target_shape
+
+    pts_src = np.array([[0, 0], [0, w], [h, 0], [h, w]])
+    pts_dst = np.array([[0, 0], [int(0.2*target_w), target_h], [target_w, 0], [int(0.8*target_w), target_h]])
+    h, status = cv.findHomography(pts_src, pts_dst)
+    return cv.warpPerspective(retrieval_img, h, (target_w, target_h))
+
+
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
     # background = background()    # for now: a random, 1-colored background
     background_colors = [(0, 200, 0), (200, 0, 0), (0, 0, 200) ]
@@ -222,8 +238,8 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
         hashtag_coins += 1
 
     # geometrischer shift gesamt pic
-    # TODO
-
+    img_out = perform_homographic_transform(retrieval_img)
+    cv.imshow("warp", img_out)
     # return pic, label
     return retrieval_img, labels
 
