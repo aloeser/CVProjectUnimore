@@ -198,7 +198,7 @@ def perform_homographic_transform(retrieval_img, target_shape = None):
     return cv.warpPerspective(retrieval_img, h, (target_w, target_h))
 
 
-def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
+def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do_homographic_transform=True):
     # background = background()    # for now: a random, 1-colored background
     background_colors = [(0, 200, 0), (200, 0, 0), (0, 0, 200) ]
     background_color = random.choice(background_colors)
@@ -238,8 +238,9 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
         hashtag_coins += 1
 
     # geometrischer shift gesamt pic
-    img_out = perform_homographic_transform(retrieval_img)
-    cv.imshow("warp", img_out)
+    if do_homographic_transform:
+        retrieval_img = perform_homographic_transform(retrieval_img)
+
     # return pic, label
     return retrieval_img, labels
 
