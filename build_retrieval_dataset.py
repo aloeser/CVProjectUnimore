@@ -172,13 +172,38 @@ def insert_pic(retrieval_img, coin_img, inverted_mask):
     # Step 4: actually perform the insert - still hacky atm
     topleft_y = center_y - coin_radius
     topleft_x = center_x - coin_radius
-    insert_coin_threshold_based(retrieval_img, topleft_y, topleft_x, coin_img)
+
+    def insert_coin_to_position(target_img, y, x, coin_only_img, inverted_mask):
+        ch, cw, _ = coin_only_img.shape
+        background = cv.bitwise_and(target_img[y:y+ch, x:x+cw], target_img[y:y+ch, x:x+cw], mask=inverted_mask)
+        final_image = cv.add(coin_only_img, background)
+        target_img[y:y+ch, x:x+cw] = final_image
+
+    insert_coin_to_position(retrieval_img, topleft_y, topleft_x, coin_img, inverted_mask)
 
 
-def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
-    # background = background():
+"""
+Takes a retrieval image as input and returns a copy of the image, with an homographic transformation applied.
+By default, the output image has the same shape as the original image.
+"""
+def perform_homographic_transform(retrieval_img, target_shape = None):
+    h, w, _ = retrieval_img.shape
+    if target_shape is None:
+        target_shape = retrieval_img.shape[:2]
+    target_h, target_w = target_shape
+
+    pts_src = np.array([[0, 0], [0, w], [h, 0], [h, w]])
+    pts_dst = np.array([[0, 0], [int(0.2*target_w), target_h], [target_w, 0], [int(0.8*target_w), target_h]])
+    h, status = cv.findHomography(pts_src, pts_dst)
+    return cv.warpPerspective(retrieval_img, h, (target_w, target_h))
+
+
+def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do_homographic_transform=True):
+    # background = background()    # for now: a random, 1-colored background
+    background_colors = [(0, 200, 0), (200, 0, 0), (0, 0, 200) ]
+    background_color = random.choice(background_colors)
+
     # pic = gen_pic(y,x,background)
-    background_color = (0, 255, 0)
     retrieval_img = create_bgr_image(h, w, bg=background_color)
 
     # label-list: a dictionary mapping coin cent values (integers) to their frequency,
@@ -193,7 +218,7 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
     hashtag_coins = 0
     while hashtag_coins < coin_amt:
         # get coin from data
-        coin_value, coin_img = random_coin(data_path=data_path, cents=[5,2,1])
+        coin_value, coin_img = random_coin(data_path=data_path)
 
         # add to label-list
         labels[coin_value] += 1
@@ -213,13 +238,14 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9):
         hashtag_coins += 1
 
     # geometrischer shift gesamt pic
-    # TODO
+    if do_homographic_transform:
+        retrieval_img = perform_homographic_transform(retrieval_img)
 
     # return pic, label
     return retrieval_img, labels
 
 def main():
-    img, _ = generate_retrieval_image(h=1000, w=1000, coin_amt_mean=5)
+    img, _ = generate_retrieval_image(h=256, w=256, coin_amt_mean=5)
     cv.imshow("result", img)
     cv.waitKey(0)
     cv.destroyAllWindows()
