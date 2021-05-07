@@ -1,12 +1,19 @@
 import math
 import cv2 as cv
 import numpy as np
-import sys
 import random
 import os
 
-# Returns a random coin
+
 def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 2, 1], data_path='data', side=None):
+    """
+    Returns a random coin.
+    :param countries:
+    :param cents:
+    :param data_path:
+    :param side:
+    :return:
+    """
 
     coin_names = {
         200: '2',
@@ -34,85 +41,139 @@ def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 
 
     return coin_value, cv.imread(coin_file)
 
-def insert_coin_threshold_based(img1, y, x, img2, thresh1=10, thresh2=220):
-    #cv.imshow('img1', img1)
-    #cv.imshow('img2', img2)
-
-    # I want to put logo on top-left corner, So I create a ROI
-    rows, cols, channels = img2.shape
-    roi = img1[0+y:rows+y, 0+x:cols+x]
-
-    # Now create a mask of logo and create its inverse mask also
-    img2gray = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
-    img2gray_inv = cv.bitwise_not(img2gray)
-    ret, mask = cv.threshold(img2gray_inv, thresh1, 255, cv.THRESH_BINARY)
-
-    # Take only region of logo from logo image.
-    img2_fg = cv.bitwise_and(img2, img2, mask=mask)
-
-    # additional fine tunging / correcting mask with img2_fg
-    img2_fg_gray = cv.cvtColor(img2_fg, cv.COLOR_BGR2GRAY)
-    ret2, mask2 = cv.threshold(img2_fg_gray, thresh2, 255, cv.THRESH_BINARY)
-    mask2_inv = cv.bitwise_not(mask2)
-
-    better_mask = cv.bitwise_and(mask, mask2_inv)
-    better_mask_inv = cv.bitwise_not(better_mask)
-
-    # Now black-out the area of logo in ROI
-    better_img1_bg = cv.bitwise_and(roi, roi, mask=better_mask_inv)
-
-    # Take only region of logo from logo image.
-    better_img2_fg = cv.bitwise_and(img2, img2, mask=better_mask)
-
-    dst = cv.add(better_img1_bg, better_img2_fg)
-    img1[0+y:rows+y, 0+x:cols+x] = dst
-
-# Creates a image with the given height, width, and background
+# BACKGROUND MERGE
 def create_bgr_image(height, width, bg=(0,0,0)):
+    """
+    Creates a image with the given height, width, and background.
+    :param height:
+    :param width:
+    :param bg:
+    :return:
+    """
     img = np.zeros((height, width, 3), np.uint8)
     img[:, :] = bg
     return img
 
 
-def extract_rotated_resized_coin(inp_pic, y=64, x=64, phi=0):
-    # resize 250x250 to 64x64
+
+
+## rotate_extract_coin ##
+def rotate_pic(inp_pic, phi):
+    """
+    Rotates an input picture counter-clockwise around its center with an given angle.
+    :param inp_pic: input picture
+    :param phi: rotation angle
+    :return: output picture
+    """
+    y, x = inp_pic.shape[:2]
+    matrix = cv.getRotationMatrix2D((x / 2, y / 2), phi, 1.0)
+    out_pic = cv.warpAffine(inp_pic, matrix, (x, y))
+    return out_pic
+def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxRadius=190):
+    """
+    Detects a circle (through Hough Transformation) and returns the coordinates (x_ctr, y_ctr, r)
+    :param inp_pic: input picture
+    :param blur_strgth: choose between "low" and "high" blurring
+    :param hough_dp: Inverse ratio of the accumulator resolution to the image resolution.
+    For example, if dp=1 , the accumulator has the same resolution as the input image.
+    If dp=2 , the accumulator has half as big width and height.
+    :param minRadius: minimum circle radius
+    :param maxRadius: maximum circle radius
+    :return: coordinates (x_ctr, y_ctr) and the circle radius r of the found circle
+    """
+    inp_pic_grey = cv.cvtColor(inp_pic, cv.COLOR_BGR2GRAY)
+    if blur_strgth == "low":
+        inp_pic_grey_blurred = cv.GaussianBlur(inp_pic_grey, (3,3), 1, 1)
+    elif blur_strgth == "high":
+        inp_pic_grey_blurred = cv.GaussianBlur(inp_pic_grey, (9,9), 2, 2)
+    #cv.imshow("grey_blurred", inp_pic_grey_blurred)
+    # HoughCircles(image, method, dp, minDist, circles=None, param1=None, param2=None, minRadius=None, maxRadius=None)
+    circles = cv.HoughCircles(inp_pic_grey_blurred, cv.HOUGH_GRADIENT, hough_dp, 20, minRadius, maxRadius) #minDist = 20
+    if (circles is None):
+        print("No circles found.")
+    elif len(circles) != 1:
+        print("More than one circle found.")
+    else:
+        circles = np.round(circles[0, :].astype("int")) # rounding coordinates to integer values
+        x_ctr, y_ctr, r = circles[0]
+        #cv.circle(inp_pic, (125, 125), r, color=(0, 0, 0), thickness=4, lineType=8, shift=0)
+        #cv.imshow('circle in inp_pic', inp_pic)
+        print("1 circle found. radius: ", r, ", center coordinate: (", x_ctr, ",", y_ctr, ")")
+        return x_ctr, y_ctr, r
+def create_masks(x_ctr, y_ctr, r, x=250, y=250):
+    """
+    Creates mask (and inverted mask) with specific size (y, x) and white (black) circle (x_ctr, y_ctr, r) in it.
+    :param x: width of mask
+    :param y: height of mask
+    :param x_ctr: x-coordinate of circle center
+    :param y_ctr: y-coordinate of circle center
+    :param r: radius of circle
+    :return: mask (white filled circle) and mask_inv (black filled circle)
+    """
+    mask = np.zeros((y, x, 3), np.uint8)
+    center = (x_ctr, y_ctr)
+    # cv.circle(img, center, radius, color[, thickness[, lineType[, shift]]]) -> img
+    cv.circle(mask, center, r, color=(255, 255, 255), thickness=-1, lineType=8, shift=0) # thickness=-1 => filled circle
+    mask = cv.cvtColor(mask, cv.COLOR_BGR2GRAY)
+    mask_inv = cv.bitwise_not(mask)
+    return mask, mask_inv
+def extract_coin(inp_pic, mask):
+    """
+    Takes an image and extracts the coin with respect to the given coin-mask.
+    :param inp_pic: input picture
+    :param mask: coin-mask
+    :return: output picture of the coin without a background
+    """
+    out_pic = cv.bitwise_and(inp_pic, inp_pic, mask=mask)
+    return out_pic
+def resize_pic(inp_pic, x=64, y=64):
+    """
+    Resize a 250x250 input picture to 64x64 output picture.
+    :param inp_pic: input picture
+    :param x: x, width
+    :param y: y, height
+    :return: output picture
+    """
     r = x / y
     dim = (x, int(x * r))
-    inp_pic_res = cv.resize(inp_pic, dim, interpolation=cv.INTER_AREA)
-    cv.imshow('inp_pic_res', inp_pic_res)
+    out_pic = cv.resize(inp_pic, dim, interpolation=cv.INTER_AREA)
+    return out_pic
+####
+def rotate_extract_coin(inp_pic, phi):
+    """
+    Rotates, detects circle, builds masks, extracts coin and resizes.
+    :param inp_pic: input picture
+    :param phi: rotation angle
+    :return: output picture, inverse mask
+    """
+    # rotate
+    rot_pic = rotate_pic(inp_pic, phi)
+    #cv.imshow("rot_pic", rot_pic)
 
-    # rotation
-    matrix = cv.getRotationMatrix2D((x / 2, y / 2), phi, 1.0)
-    inp_pic_rot = cv.warpAffine(inp_pic_res, matrix, (x, y))
-    cv.imshow('inp_pic_rot', inp_pic_rot)
+    # hough
+    x_ctr, y_ctr, r = hough_circle_detection(rot_pic, "low")
 
-    # hough circle detection
-    inp_pic_grey = cv.cvtColor(inp_pic_rot, cv.COLOR_BGR2GRAY)
-    inp_pic_grey = cv.GaussianBlur(inp_pic_grey, (3, 3), 1, 1)
-    cv.imshow('inp_pic_grey', inp_pic_grey)
-    # HoughCircles(image, method, dp, minDist, circles=None, param1=None, param2=None, minRadius=None, maxRadius=None)
-    circles = cv.HoughCircles(inp_pic_grey, cv.HOUGH_GRADIENT, dp=3, minDist=20, minRadius=25, maxRadius=35)
+    # masks
+    y, x, _ = inp_pic.shape
+    mask, mask_inv = create_masks(x_ctr, y_ctr, r, x, y)
+    #cv.imshow("mask", mask)
 
-    # draw circle in mask
-    mask = np.zeros((y, x, 3), np.uint8)
-    if (circles is not None):
-        if len(circles) == 1:
-            circles = np.round(circles[0, :].astype("int"))
-            x_, y_, r = circles[0]
-            cv.circle(mask, (x_, y_), r, (255, 255, 255), -1, 8, 0)
-            print('1 circle found. r: ', r)
-        else:
-            print('multiple circles.')
-    else:
-        print('no circle found.')
+    # extract coin / delete background
+    coin_no_background = extract_coin(rot_pic, mask)
+    #cv.imshow("coin_no_background", coin_no_background)
 
-    # with mask filter input pic and get inverted mask
-    cv.imshow('mask', mask)
-    mask = cv.cvtColor(mask, cv.COLOR_BGR2GRAY)
-    out_pic = cv.bitwise_and(inp_pic_rot, inp_pic_rot, mask=mask)
-    mask_inv = cv.bitwise_not(mask)
+    # resize
+    out_pic = resize_pic(coin_no_background)
+    mask_inv = resize_pic(mask_inv)
+    #cv.imshow("final_pic", final_pic)
 
     return out_pic, mask_inv
+
+
+
+
+
+
 
 # list of existing coins. Coins are given by their center coordinates (y, x) and their radius r.
 # #The radius is assumed to be half the image width/height (we expect square images, so it does not matter)
@@ -226,7 +287,8 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
         labels['num_coins'] += 1
 
         # scale, rotate, remove background
-        tmp, inv_mask = extract_rotated_resized_coin(coin_img)
+        phi = np.random.randint(0, 360)
+        tmp, inv_mask = rotate_extract_coin(coin_img, phi)
 
         # find position for insert
         #y, x = get_insertable_position()
