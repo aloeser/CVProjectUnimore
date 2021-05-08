@@ -114,72 +114,49 @@ def extract_rotated_resized_coin(inp_pic, y=64, x=64, phi=0):
 
     return out_pic, mask_inv
 
-# list of existing coins. Coins are given by their center coordinates (y, x) and their radius r.
-# #The radius is assumed to be half the image width/height (we expect square images, so it does not matter)
-EXISTING_COIN_POSITIONS = []
-def insert_pic(retrieval_img, coin_img, inverted_mask):
-    # returns y, x coordinates that satisfy two criteria:
-    #  criteria 1: the coin is completely inside the image
-    #  criteria 2: the coin does not overlap with any existing coin - using actual overlap, i.e., round rather than square bounding boxes
-    def get_insertable_position(retrieval_img, coin_radius, existing_coin_positions, max_attempts=10):
-        retrieval_h, retrieval_w, _ = retrieval_img.shape
-        # Look for possible positions till we find one, then break the loop
-        # Use no more than max_attempts attempts to find a suitable position
-        attempt = 0
-        while attempt < max_attempts:
-            attempt += 1
 
-            # restrict the random range the following way to enforce the criteria 1
-            # (if coins are at least 1 radius away from the border, they cant go beyond)
-            y = random.randint(coin_radius, retrieval_h - coin_radius)
-            x = random.randint(coin_radius, retrieval_w - coin_radius)
+# returns y, x center coordinates of a circle/coin that satisfy two criteria:
+#  criteria 1: the coin is completely inside the image
+#  criteria 2: the coin does not overlap with any existing coin - using actual overlap, i.e., round rather than square bounding boxes
+def get_insertable_position(retrieval_img, coin_radius, existing_coin_positions, max_attempts=10):
+    retrieval_h, retrieval_w, _ = retrieval_img.shape
+    # Look for possible positions till we find one, then break the loop
+    # Use no more than max_attempts attempts to find a suitable position
+    attempt = 0
+    while attempt < max_attempts:
+        attempt += 1
 
-            # check for criteria 2 - for each existing coin, check for overlaps
-            overlap_found = False
-            for (c_y, c_x, c_r) in existing_coin_positions:
-                # calculate euclidian distance between the coins' center points
-                distance_between_centers = math.sqrt((c_y - y)**2 + (c_x - x)**2)
-                # the distance between the centers has to be at least as big as the sum of both radius,
-                # as each coin is going to take exactly <radius> space in each direction
-                if distance_between_centers < c_r + coin_radius:
-                    # too close, we found an overlap
-                    overlap_found = True
+        # restrict the random range the following way to enforce the criteria 1
+        # (if coins are at least 1 radius away from the border, they cant go beyond)
+        y = random.randint(coin_radius, retrieval_h - coin_radius)
+        x = random.randint(coin_radius, retrieval_w - coin_radius)
 
-            if not overlap_found:
-                # both checks pass -> we found a valid position, return it
-                return y, x
+        # check for criteria 2 - for each existing coin, check for overlaps
+        overlap_found = False
+        for (c_y, c_x, c_r) in existing_coin_positions:
+            # calculate euclidian distance between the coins' center points
+            distance_between_centers = math.sqrt((c_y - y) ** 2 + (c_x - x) ** 2)
+            # the distance between the centers has to be at least as big as the sum of both radius,
+            # as each coin is going to take exactly <radius> space in each direction
+            if distance_between_centers < c_r + coin_radius:
+                # too close, we found an overlap
+                overlap_found = True
 
-        # if the loops exits without a return, we could not find a valid position. Return None
-        return None, None
+        if not overlap_found:
+            # both checks pass -> we found a valid position, return it
+            return y, x
 
-    # Step 1: calculate coin radius
-    # not sure yet if all coin images are going to be 64x64 (making 1€ the same size as 1ct feels wrong),
-    # so for now I assume that coin images might have different sizes, and with that, a different radius
-    coin_h, coin_w, _ = coin_img.shape
-    # TODO uncomment the following line as soon as roman's code is working
-    #assert coin_h == coin_w, "coins should be square"
-    coin_radius = (coin_h + 1) // 2
+    # if the loops exits without a return, we could not find a valid position. Return None
+    return None, None
 
-    # Step 2: try to find a valid position - this may fail if the image is too full
-    center_y, center_x = get_insertable_position(retrieval_img, coin_radius, EXISTING_COIN_POSITIONS)
-    # check if we found a valid position, if not raise an exception
-    if center_y is None:
-        raise Exception(f"could not find a position for the {len(EXISTING_COIN_POSITIONS)+1}th coin")
 
-    # Step 3: memorize the coin's position, in case further coins need to be inserted later on
-    EXISTING_COIN_POSITIONS.append((center_y, center_x, coin_radius))
-
-    # Step 4: actually perform the insert - still hacky atm
+def insert_coin_to_position(target_img, center_y, center_x, coin_radius, coin_only_img, inverted_mask):
     topleft_y = center_y - coin_radius
     topleft_x = center_x - coin_radius
-
-    def insert_coin_to_position(target_img, y, x, coin_only_img, inverted_mask):
-        ch, cw, _ = coin_only_img.shape
-        background = cv.bitwise_and(target_img[y:y+ch, x:x+cw], target_img[y:y+ch, x:x+cw], mask=inverted_mask)
-        final_image = cv.add(coin_only_img, background)
-        target_img[y:y+ch, x:x+cw] = final_image
-
-    insert_coin_to_position(retrieval_img, topleft_y, topleft_x, coin_img, inverted_mask)
+    ch, cw, _ = coin_only_img.shape
+    background = cv.bitwise_and(target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw], target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw], mask=inverted_mask)
+    final_image = cv.add(coin_only_img, background)
+    target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw] = final_image
 
 
 """
@@ -214,6 +191,9 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
     # coin_amt = gaussian(coin_amt_mean, var=1)
     coin_amt = coin_amt_mean
 
+    # List of existing coins, given by their center coordinates and radius
+    existing_coin_positions = []
+
     # while #coins < coin_amt
     hashtag_coins = 0
     while hashtag_coins < coin_amt:
@@ -226,13 +206,18 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
         labels['num_coins'] += 1
 
         # scale, rotate, remove background
-        tmp, inv_mask = extract_rotated_resized_coin(coin_img)
+        coin_without_background, inv_mask = extract_rotated_resized_coin(coin_img)
 
-        # find position for insert
-        #y, x = get_insertable_position()
-
-        # insert coin into the retrieval image
-        insert_pic(retrieval_img, tmp, inv_mask)
+        # find position for insert,
+        # and insert coin into the retrieval image
+        coin_radius = (coin_without_background.shape[0] + 1) // 2
+        center_y, center_x = get_insertable_position(retrieval_img, coin_radius, existing_coin_positions)
+        if center_y is not None:
+            existing_coin_positions.append((center_y, center_x, coin_radius))
+            insert_coin_to_position(retrieval_img,center_x, center_y, coin_radius, coin_without_background, inv_mask)
+        else:
+            # could not find a valid position, maybe the image is too full already
+            break
 
         # #coins++
         hashtag_coins += 1
@@ -245,7 +230,7 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
     return retrieval_img, labels
 
 def main():
-    img, _ = generate_retrieval_image(h=256, w=256, coin_amt_mean=5)
+    img, _ = generate_retrieval_image(h=256, w=256, coin_amt_mean=5, do_homographic_transform=False)
     cv.imshow("result", img)
     cv.waitKey(0)
     cv.destroyAllWindows()
