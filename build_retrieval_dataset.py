@@ -139,11 +139,12 @@ def resize_pic(inp_pic, x=64, y=64):
     out_pic = cv.resize(inp_pic, dim, interpolation=cv.INTER_AREA)
     return out_pic
 ####
-def rotate_extract_coin(inp_pic, phi):
+def rotate_extract_coin(inp_pic, phi, new_size):
     """
     Rotates, detects circle, builds masks, extracts coin and resizes.
     :param inp_pic: input picture
     :param phi: rotation angle
+    :new_size: new size of the coin (still squared)
     :return: output picture, inverse mask
     """
     # rotate
@@ -163,8 +164,8 @@ def rotate_extract_coin(inp_pic, phi):
     #cv.imshow("coin_no_background", coin_no_background)
 
     # resize
-    out_pic = resize_pic(coin_no_background)
-    mask_inv = resize_pic(mask_inv)
+    out_pic = resize_pic(coin_no_background, x=new_size, y=new_size)
+    mask_inv = resize_pic(mask_inv, x=new_size, y=new_size)
     #cv.imshow("final_pic", final_pic)
 
     return out_pic, mask_inv
@@ -229,6 +230,11 @@ def perform_homographic_transform(retrieval_img, target_shape = None):
     h, status = cv.findHomography(pts_src, pts_dst)
     return cv.warpPerspective(retrieval_img, h, (target_w, target_h))
 
+def get_real_coin_size(coin_value, two_euro_reference_size=64):
+    # using https://de.wikipedia.org/wiki/Eurom%C3%BCnzen as reference for coin sizes
+    coin_sizes_mm = {200: 2575, 100: 2325, 50: 2425, 20: 2225, 10: 1975, 5: 2125, 2: 1875, 1: 1625}
+    scale_factor = coin_sizes_mm[coin_value] / coin_sizes_mm[200]
+    return int(scale_factor * two_euro_reference_size)
 
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do_homographic_transform=True):
     # background = background()    # for now: a random, 1-colored background
@@ -262,7 +268,8 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
 
         # scale, rotate, remove background
         phi = np.random.randint(0, 360)
-        coin_without_background, inv_mask = rotate_extract_coin(coin_img, phi)
+        physical_coin_size = get_real_coin_size(coin_value)
+        coin_without_background, inv_mask = rotate_extract_coin(coin_img, phi, physical_coin_size)
 
         # find position for insert,
         # and insert coin into the retrieval image
