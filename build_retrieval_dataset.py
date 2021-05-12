@@ -298,11 +298,6 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
         # get coin from data
         coin_value, coin_img = random_coin(data_path=data_path)
 
-        # add to label-list
-        labels[coin_value] += 1
-        labels['sum'] += coin_value
-        labels['num_coins'] += 1
-
         # scale, rotate, remove background
         phi = np.random.randint(0, 360)
         physical_coin_size = get_real_coin_size(coin_value)
@@ -315,6 +310,11 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
         if center_y is not None:
             existing_coin_positions.append((center_y, center_x, coin_radius))
             insert_coin_to_position(retrieval_img,center_x, center_y, coin_radius, coin_without_background, inv_mask)
+
+            # add coin to label-list
+            labels[coin_value] += 1
+            labels['sum'] += coin_value
+            labels['num_coins'] += 1
         else:
             # could not find a valid position, maybe the image is too full already
             break
