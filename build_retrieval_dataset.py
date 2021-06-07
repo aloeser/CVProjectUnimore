@@ -3,7 +3,7 @@ import cv2 as cv
 import numpy as np
 import random
 import os
-
+import background_generator
 
 def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 2, 1], data_path='data', side=None):
     """
@@ -172,9 +172,6 @@ def rotate_extract_coin(inp_pic, phi):
 
 
 
-
-
-
 # list of existing coins. Coins are given by their center coordinates (y, x) and their radius r.
 # #The radius is assumed to be half the image width/height (we expect square images, so it does not matter)
 EXISTING_COIN_POSITIONS = []
@@ -261,16 +258,18 @@ def perform_homographic_transform(retrieval_img, target_shape = None):
 
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do_homographic_transform=True):
     # background = background()    # for now: a random, 1-colored background
-    background_colors = [(0, 200, 0), (200, 0, 0), (0, 0, 200) ]
-    background_color = random.choice(background_colors)
+    #background_colors = [(0, 200, 0), (200, 0, 0), (0, 0, 200) ]
+    #background_color = random.choice(background_colors)
 
     # pic = gen_pic(y,x,background)
-    retrieval_img = create_bgr_image(h, w, bg=background_color)
+    #retrieval_img = create_bgr_image(h, w, bg=background_color)
+
+    retrieval_img = background_generator.gen_background()
 
     # label-list: a dictionary mapping coin cent values (integers) to their frequency,
     # and a 'sum' field containing the accumulated value. We could calculate the sum on the fly from the dictionary too,
     # but I'm lazy and one additional dictionary entry does not hurt
-    labels = {200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 2: 0, 1: 0, 'sum': 0, 'num_coins': 0, 'background': background_color}
+    labels = {200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 2: 0, 1: 0, 'sum': 0, 'num_coins': 0} # 'background': background_color}
 
     # coin_amt = gaussian(coin_amt_mean, var=1)
     coin_amt = coin_amt_mean
@@ -307,7 +306,7 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
     return retrieval_img, labels
 
 def main():
-    img, _ = generate_retrieval_image(h=256, w=256, coin_amt_mean=5)
+    img, _ = generate_retrieval_image(h=256, w=256, coin_amt_mean=5, do_homographic_transform=False)
     cv.imshow("result", img)
     cv.waitKey(0)
     cv.destroyAllWindows()

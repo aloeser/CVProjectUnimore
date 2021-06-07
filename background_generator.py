@@ -65,9 +65,50 @@ def texture(inp_img, sigma, turbulence):
     out_img = np.clip(inp_img, 0, 255)
     return out_img
 
+def gen_background(x=256, y=256):
+    """
+    Generate a brown 3-channel uint8 background image (randomized with specific parameters).
+    :param x: width
+    :param y: height
+    :return: background image
+    """
+    # 1 channel structure
+    tmp = add_noise(texture(grey_bg_img("rnd", ch=1, x=x, y=y), sigma=5, turbulence=2), sigma=5).astype(np.uint8)
+    #cv.imshow("1ch structure", tmp)
+
+    # 3 channel structure
+    structure = cv.cvtColor(tmp, cv.COLOR_GRAY2BGR)
+    # cv.imshow("3ch structure", structure)
+
+    # brown BGR_colors
+    bgr_burlywood   = (135, 184, 222)
+    bgr_tan         = (140, 180, 210)
+    bgr_sandybrown  = (96, 164, 244)
+    bgr_peru        = (63, 133, 205)
+    bgr_chocolate   = (30, 105, 210)
+    bgr_saddlebrown = (19, 69, 139)
+    bgr_sienna      = (45, 82, 160)
+    bgr_brown       = (42, 42, 165)
+    bgr_maroon      = (0, 0, 128)
+
+    # 3 channel brown picture
+    brown_pic = grey_bg_img(bgr_sienna, 3)
+    # cv.imshow("brown pic", brown_pic)
+
+    # Blending: brown picture + structure
+    alpha = 0.7
+    beta = (1.0 - alpha)
+    # dst = alpha*(img1) + beta*(img2) + gamma
+    dst = cv.addWeighted(src1=brown_pic, alpha=alpha, src2=structure, beta=beta, gamma=-40.0)
+
+    return dst
+
 
 def main():
-    # creating a random grey background
+    test_background = gen_background()
+    cv.imwrite("test background.jpg", test_background)
+
+    """# creating a random grey background
     grey_bg_img1 = grey_bg_img("rnd", ch=1)
     print("shape", grey_bg_img1.shape, "grey value: ", grey_bg_img1[0,0,0])
     cv.imshow("grey_bg_img", grey_bg_img1)
@@ -92,9 +133,50 @@ def main():
     cv.imwrite('texture-and-noise.jpg', add_noise(texture(grey_bg_img1, sigma=4, turbulence=2), sigma=10))
 
     # PARAM CHECK POINT
-    cv.imwrite('final.jpg', add_noise(texture(grey_bg_img("rnd", ch=1), sigma=4, turbulence=2), sigma=10))
+    # = add_noise(texture(grey_bg_img("rnd", ch=3), sigma=4, turbulence=2), sigma=10)
+    cv.imwrite('final.jpg', add_noise(texture(grey_bg_img("rnd", ch=3), sigma=4, turbulence=2), sigma=10))
+    """
     cv.waitKey(0)
     cv.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
+
+
+"""
+structure = add_noise(texture(grey_bg_img("rnd", ch=3, x=x, y=y), sigma=10, turbulence=2), sigma=10).astype(np.uint8)
+    hsv = cv.cvtColor(structure, cv.COLOR_BGR2HSV)
+
+    # brown BGR_colors
+    bgr_burlywood   = (135, 184, 222)
+    bgr_tan         = (140, 180, 210)
+    bgr_sandybrown  = (96, 164, 244)
+    bgr_peru        = (63, 133, 205)
+    bgr_chocolate   = (30, 105, 210)
+    bgr_saddlebrown = (19, 69, 139)
+    bgr_sienna      = (45, 82, 160)
+    bgr_brown       = (42, 42, 165)
+    bgr_maroon      = (0, 0, 128)
+
+    saddlebrown = np.uint8([[[19, 69, 139]]])
+    hsv_saddlebrown = cv.cvtColor(saddlebrown, cv.COLOR_BGR2HSV)
+    h, s, v = hsv_saddlebrown[0,0]
+    print("saddle hsv: ", h, s, v)
+
+    test_pic = grey_bg_img(bgr_saddlebrown, 3)
+    cv.imshow("test pic", test_pic)
+
+    print("curr hsv", hsv[50, 50, :])
+    #print("pic shape", hsv.shape)
+    # hue (dominant wavelength), saturation (purity), value (intensity); H: 0-179, S: 0-255, V: 0-255
+    curr_h = hsv[50, 50, 0]
+    curr_s = hsv[50, 50, 1]
+    curr_v = hsv[50, 50, 2]
+
+    hsv[:, :, 0] += h - curr_h
+    hsv[:, :, 1] += s - curr_s
+    hsv[:, :, 2] += v - curr_v
+
+    print(hsv[50,50,:])
+    # background = cv.cvtColor(hsv, cv.COLOR_HSV2BGR)
+"""
