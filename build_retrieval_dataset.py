@@ -5,14 +5,13 @@ import random
 import os
 import background_generator
 
-def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 2, 1], data_path='data', side=None):
+def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 2, 1], data_path='data'):
     """
     Returns a random coin.
-    :param countries:
-    :param cents:
-    :param data_path:
-    :param side:
-    :return:
+    :param countries: the list of countries to choose from
+    :param cents: the list of coin values to choose from, in cents
+    :param data_path: the folder containing the dataset
+    :return: coin value, coin image
     """
 
     coin_names = {
@@ -31,33 +30,24 @@ def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 
     path = os.path.join(data_path, country, coin_name)
 
     coin_files = [os.path.join(path, f) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
-    if side is not None:
-        coin_files = list(filter(lambda x: side in x, coin_files))
-
     coin_file = random.choice(coin_files)
-
-    print(f"'{side}' in {coin_file}")
-    print(f"using {coin_file}")
 
     return coin_value, cv.imread(coin_file)
 
-# BACKGROUND MERGE
+
 def create_bgr_image(height, width, bg=(0,0,0)):
     """
     Creates a image with the given height, width, and background.
-    :param height:
-    :param width:
-    :param bg:
-    :return:
+    :param height: height of the picture
+    :param width: width of the picture
+    :param bg: background color, given as (b,g,r) tuple
+    :return: an image of size height * width with bg as background color
     """
     img = np.zeros((height, width, 3), np.uint8)
     img[:, :] = bg
     return img
 
 
-
-
-## rotate_extract_coin ##
 def rotate_pic(inp_pic, phi):
     """
     Rotates an input picture counter-clockwise around its center with an given angle.
@@ -69,6 +59,8 @@ def rotate_pic(inp_pic, phi):
     matrix = cv.getRotationMatrix2D((x / 2, y / 2), phi, 1.0)
     out_pic = cv.warpAffine(inp_pic, matrix, (x, y))
     return out_pic
+
+
 def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxRadius=190):
     """
     Detects a circle (through Hough Transformation) and returns the coordinates (x_ctr, y_ctr, r)
@@ -100,6 +92,8 @@ def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxR
         #cv.imshow('circle in inp_pic', inp_pic)
         print("1 circle found. radius: ", r, ", center coordinate: (", x_ctr, ",", y_ctr, ")")
         return x_ctr, y_ctr, r
+
+
 def create_masks(x_ctr, y_ctr, r, x=250, y=250):
     """
     Creates mask (and inverted mask) with specific size (y, x) and white (black) circle (x_ctr, y_ctr, r) in it.
@@ -117,6 +111,8 @@ def create_masks(x_ctr, y_ctr, r, x=250, y=250):
     mask = cv.cvtColor(mask, cv.COLOR_BGR2GRAY)
     mask_inv = cv.bitwise_not(mask)
     return mask, mask_inv
+
+
 def extract_coin(inp_pic, mask):
     """
     Takes an image and extracts the coin with respect to the given coin-mask.
@@ -126,6 +122,8 @@ def extract_coin(inp_pic, mask):
     """
     out_pic = cv.bitwise_and(inp_pic, inp_pic, mask=mask)
     return out_pic
+
+
 def resize_pic(inp_pic, x=64, y=64):
     """
     Resize a 250x250 input picture to 64x64 output picture.
@@ -138,12 +136,14 @@ def resize_pic(inp_pic, x=64, y=64):
     dim = (x, int(x * r))
     out_pic = cv.resize(inp_pic, dim, interpolation=cv.INTER_AREA)
     return out_pic
-####
-def rotate_extract_coin(inp_pic, phi):
+
+
+def rotate_extract_coin(inp_pic, phi, new_size):
     """
     Rotates, detects circle, builds masks, extracts coin and resizes.
     :param inp_pic: input picture
     :param phi: rotation angle
+    :new_size: new size of the coin (still squared)
     :return: output picture, inverse mask
     """
     # rotate
@@ -163,88 +163,83 @@ def rotate_extract_coin(inp_pic, phi):
     #cv.imshow("coin_no_background", coin_no_background)
 
     # resize
-    out_pic = resize_pic(coin_no_background)
-    mask_inv = resize_pic(mask_inv)
+    out_pic = resize_pic(coin_no_background, x=new_size, y=new_size)
+    mask_inv = resize_pic(mask_inv, x=new_size, y=new_size)
     #cv.imshow("final_pic", final_pic)
 
     return out_pic, mask_inv
 
 
+def get_insertable_position(target_img_shape, coin_radius, existing_coin_positions, max_attempts=10):
+    """
+    Returns y, x center coordinates of a circle/coin that satisfy two criteria:
+      criteria 1: the coin is completely inside the image
+      criteria 2: the coin does not overlap with any existing coin
+        - we use actual overlap, i.e., round rather than square bounding boxes
+    If no such position can be found in at most max_attempts attempts, the function returns None, None
+
+    :param target_image_shape: the shape of the target image (we need height and width)
+    :param coin_radius: radius of the coin to insert
+    :param existing_coin_positions: list of existing coin positions, i.e., their center coordinates and radius
+    :param max_attempts: the maximum number of attempts to find a valid position for the new coin
+    :return: y,x center coordinates of the coin position, or None, None if no valid position was found
+    """
+    retrieval_h, retrieval_w, _ = target_img_shape
+    # Look for possible positions till we find one, then break the loop
+    # Use no more than max_attempts attempts to find a suitable position
+    for _ in range(max_attempts):
+        # restrict the random range the following way to enforce the criteria 1
+        # (if coins are at least 1 radius away from the border, they cant go beyond)
+        y = random.randint(coin_radius, retrieval_h - coin_radius)
+        x = random.randint(coin_radius, retrieval_w - coin_radius)
+
+        # check for criteria 2 - for each existing coin, check for overlaps
+        overlap_found = False
+        for (c_y, c_x, c_r) in existing_coin_positions:
+            # calculate euclidian distance between the coins' center points
+            distance_between_centers = math.sqrt((c_y - y) ** 2 + (c_x - x) ** 2)
+            # the distance between the centers has to be at least as big as the sum of both radius,
+            # as each coin is going to take exactly <radius> space in each direction
+            if distance_between_centers < c_r + coin_radius:
+                # too close, we found an overlap
+                overlap_found = True
+
+        if not overlap_found:
+            # both checks pass -> we found a valid position, return it
+            return y, x
+
+    # if the loops exits without a return, we could not find a valid position. Return None
+    return None, None
 
 
-# list of existing coins. Coins are given by their center coordinates (y, x) and their radius r.
-# #The radius is assumed to be half the image width/height (we expect square images, so it does not matter)
-EXISTING_COIN_POSITIONS = []
-def insert_pic(retrieval_img, coin_img, inverted_mask):
-    # returns y, x coordinates that satisfy two criteria:
-    #  criteria 1: the coin is completely inside the image
-    #  criteria 2: the coin does not overlap with any existing coin - using actual overlap, i.e., round rather than square bounding boxes
-    def get_insertable_position(retrieval_img, coin_radius, existing_coin_positions, max_attempts=10):
-        retrieval_h, retrieval_w, _ = retrieval_img.shape
-        # Look for possible positions till we find one, then break the loop
-        # Use no more than max_attempts attempts to find a suitable position
-        attempt = 0
-        while attempt < max_attempts:
-            attempt += 1
-
-            # restrict the random range the following way to enforce the criteria 1
-            # (if coins are at least 1 radius away from the border, they cant go beyond)
-            y = random.randint(coin_radius, retrieval_h - coin_radius)
-            x = random.randint(coin_radius, retrieval_w - coin_radius)
-
-            # check for criteria 2 - for each existing coin, check for overlaps
-            overlap_found = False
-            for (c_y, c_x, c_r) in existing_coin_positions:
-                # calculate euclidian distance between the coins' center points
-                distance_between_centers = math.sqrt((c_y - y)**2 + (c_x - x)**2)
-                # the distance between the centers has to be at least as big as the sum of both radius,
-                # as each coin is going to take exactly <radius> space in each direction
-                if distance_between_centers < c_r + coin_radius:
-                    # too close, we found an overlap
-                    overlap_found = True
-
-            if not overlap_found:
-                # both checks pass -> we found a valid position, return it
-                return y, x
-
-        # if the loops exits without a return, we could not find a valid position. Return None
-        return None, None
-
-    # Step 1: calculate coin radius
-    # not sure yet if all coin images are going to be 64x64 (making 1€ the same size as 1ct feels wrong),
-    # so for now I assume that coin images might have different sizes, and with that, a different radius
-    coin_h, coin_w, _ = coin_img.shape
-    # TODO uncomment the following line as soon as roman's code is working
-    #assert coin_h == coin_w, "coins should be square"
-    coin_radius = (coin_h + 1) // 2
-
-    # Step 2: try to find a valid position - this may fail if the image is too full
-    center_y, center_x = get_insertable_position(retrieval_img, coin_radius, EXISTING_COIN_POSITIONS)
-    # check if we found a valid position, if not raise an exception
-    if center_y is None:
-        raise Exception(f"could not find a position for the {len(EXISTING_COIN_POSITIONS)+1}th coin")
-
-    # Step 3: memorize the coin's position, in case further coins need to be inserted later on
-    EXISTING_COIN_POSITIONS.append((center_y, center_x, coin_radius))
-
-    # Step 4: actually perform the insert - still hacky atm
+def insert_coin_to_position(target_img, center_y, center_x, coin_radius, coin_only_img, inverted_mask):
+    """
+    Inserts the coin image into the target image
+    :param target_img: the image where the coin should be inserted
+    :param center_y: y position of the coin's center
+    :param center_x: x position of the coin's center
+    :param coin_radius: radius of the coin
+    :param coin_only_img: an image containing only the coin, with a blackened background
+    :param inverted_mask: a mask with the same shape as the coin, but black in the area of the coin and white otherwise
+    :return: None
+    """
     topleft_y = center_y - coin_radius
     topleft_x = center_x - coin_radius
-
-    def insert_coin_to_position(target_img, y, x, coin_only_img, inverted_mask):
-        ch, cw, _ = coin_only_img.shape
-        background = cv.bitwise_and(target_img[y:y+ch, x:x+cw], target_img[y:y+ch, x:x+cw], mask=inverted_mask)
-        final_image = cv.add(coin_only_img, background)
-        target_img[y:y+ch, x:x+cw] = final_image
-
-    insert_coin_to_position(retrieval_img, topleft_y, topleft_x, coin_img, inverted_mask)
+    ch, cw, _ = coin_only_img.shape
+    background = cv.bitwise_and(target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw], target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw], mask=inverted_mask)
+    final_image = cv.add(coin_only_img, background)
+    target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw] = final_image
 
 
-"""
-Takes a retrieval image as input and returns a copy of the image, with an homographic transformation applied.
-By default, the output image has the same shape as the original image.
-"""
 def perform_homographic_transform(retrieval_img, target_shape = None):
+    """
+    Takes a retrieval image as input and returns a copy of the image, with an homographic transformation applied.
+    By default, the output image has the same shape as the original image.
+    Currently there is only one hardcoded transform available, i.e., not random.
+    :param retrieval_img: the image to transform
+    :param target_shape: the shape of the new image
+    :return: the transformed image
+    """
     h, w, _ = retrieval_img.shape
     if target_shape is None:
         target_shape = retrieval_img.shape[:2]
@@ -256,7 +251,29 @@ def perform_homographic_transform(retrieval_img, target_shape = None):
     return cv.warpPerspective(retrieval_img, h, (target_w, target_h))
 
 
+def get_real_coin_size(coin_value, two_euro_reference_size=64):
+    """
+    Returns the size physical size of a coin, assuming a 2€ coin is two_euro_reference_size pixels wide
+    :param coin_value: the value of the coin
+    :param two_euro_reference_size: width/height of a 2€ coin
+    :return: the size of a coin of the given value, with respect to the size of a 2€ coin
+    """
+    # using https://de.wikipedia.org/wiki/Eurom%C3%BCnzen as reference for coin sizes
+    coin_sizes_mm = {200: 2575, 100: 2325, 50: 2425, 20: 2225, 10: 1975, 5: 2125, 2: 1875, 1: 1625}
+    scale_factor = coin_sizes_mm[coin_value] / coin_sizes_mm[200]
+    return int(scale_factor * two_euro_reference_size)
+
+
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do_homographic_transform=True):
+    """
+    Returns an retrieval image with the given height, width and amount of coins; and a set of labels.
+    :param data_path: the location of the dataset
+    :param h: height of the generated image
+    :param w: width of the generated image
+    :param coin_amt_mean: the number of coins
+    :param do_homographic_transform: whether to apply an homographic transform
+    :return: retrieval image, labels
+    """
     # background = background()    # for now: a random, 1-colored background
     #background_colors = [(0, 200, 0), (200, 0, 0), (0, 0, 200) ]
     #background_color = random.choice(background_colors)
@@ -274,26 +291,35 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
     # coin_amt = gaussian(coin_amt_mean, var=1)
     coin_amt = coin_amt_mean
 
+    # List of existing coins, given by their center coordinates and radius
+    existing_coin_positions = []
+
     # while #coins < coin_amt
     hashtag_coins = 0
     while hashtag_coins < coin_amt:
         # get coin from data
         coin_value, coin_img = random_coin(data_path=data_path)
 
-        # add to label-list
-        labels[coin_value] += 1
-        labels['sum'] += coin_value
-        labels['num_coins'] += 1
-
         # scale, rotate, remove background
         phi = np.random.randint(0, 360)
-        tmp, inv_mask = rotate_extract_coin(coin_img, phi)
+        physical_coin_size = get_real_coin_size(coin_value)
+        coin_without_background, inv_mask = rotate_extract_coin(coin_img, phi, physical_coin_size)
 
-        # find position for insert
-        #y, x = get_insertable_position()
+        # find position for insert,
+        # and insert coin into the retrieval image
+        coin_radius = (coin_without_background.shape[0] + 1) // 2
+        center_y, center_x = get_insertable_position(retrieval_img.shape, coin_radius, existing_coin_positions)
+        if center_y is not None:
+            existing_coin_positions.append((center_y, center_x, coin_radius))
+            insert_coin_to_position(retrieval_img,center_x, center_y, coin_radius, coin_without_background, inv_mask)
 
-        # insert coin into the retrieval image
-        insert_pic(retrieval_img, tmp, inv_mask)
+            # add coin to label-list
+            labels[coin_value] += 1
+            labels['sum'] += coin_value
+            labels['num_coins'] += 1
+        else:
+            # could not find a valid position, maybe the image is too full already
+            break
 
         # #coins++
         hashtag_coins += 1
