@@ -1,4 +1,7 @@
+import json
 import math
+import shutil
+
 import cv2 as cv
 import numpy as np
 import random
@@ -331,11 +334,29 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
     # return pic, label
     return retrieval_img, labels
 
+def generate_retrieval_dataset(path='retrieval_dataset', num_images=50, format="png", do_homographic_transform=False):
+    # Delete the existing dataset
+    if os.path.exists(path):
+        shutil.rmtree(path)
+
+    os.makedirs(path)
+
+    metadata = {}
+    for img_index in range(num_images):
+        try:
+            img, meta = generate_retrieval_image(h=256, w=256, coin_amt_mean=5, do_homographic_transform=do_homographic_transform)
+            metadata[img_index] = meta
+            cv.imwrite(os.path.join(path, f"{img_index}.{format}"), img)
+        except Exception:
+            pass
+
+    with open(os.path.join(path, 'metadata.json'), 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+
 def main():
-    img, _ = generate_retrieval_image(h=256, w=256, coin_amt_mean=5, do_homographic_transform=False)
-    cv.imshow("result", img)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
+    generate_retrieval_dataset(path='retrieval_dataset', num_images=50)
+    print("done")
 
 if __name__ == "__main__":
     main()
