@@ -86,8 +86,10 @@ def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxR
     circles = cv.HoughCircles(inp_pic_grey_blurred, cv.HOUGH_GRADIENT, hough_dp, 20, minRadius, maxRadius) #minDist = 20
     if (circles is None):
         print("No circles found.")
+        return None
     elif len(circles) != 1:
         print("More than one circle found.")
+        return None
     else:
         circles = np.round(circles[0, :].astype("int")) # rounding coordinates to integer values
         x_ctr, y_ctr, r = circles[0]
@@ -354,8 +356,27 @@ def generate_retrieval_dataset(path='retrieval_dataset', num_images=50, format="
         json.dump(metadata, f, indent=2)
 
 
+
+def test_images():
+    from pathlib import Path
+
+    failed_paths = []
+    for path in Path('data').rglob('*.jpg'):
+        print(f"trying path {path}")
+        img = cv.imread(str(path))
+        x = hough_circle_detection(img, "low")
+
+
+        if x is None:
+            failed_paths.append(path.name)
+
+    for path in failed_paths:
+        print(path)
+
+
 def main():
-    generate_retrieval_dataset(path='retrieval_dataset', num_images=50)
+    #generate_retrieval_dataset(path='retrieval_dataset', num_images=50)
+    test_images()
     print("done")
 
 if __name__ == "__main__":
