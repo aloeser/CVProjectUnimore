@@ -86,10 +86,14 @@ def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxR
     circles = cv.HoughCircles(inp_pic_grey_blurred, cv.HOUGH_GRADIENT, hough_dp, 20, minRadius, maxRadius) #minDist = 20
     if (circles is None):
         print("No circles found.")
-        return None
+        raise Exception("No circles found.")
     elif len(circles) != 1:
         print("More than one circle found.")
-        return None
+        # For some images, the detection fails and openCV returns a shape of (4,1).
+        # I cannot find this behaviour in the documentation, so maybe it is a bug
+        # Best fix so far: guess the circle's position
+        y, x = inp_pic_grey.shape[:2]
+        return int(x/2), int(y/2), int(min(x,y) / 2 * 0.95)
     else:
         circles = np.round(circles[0, :].astype("int")) # rounding coordinates to integer values
         x_ctr, y_ctr, r = circles[0]
@@ -375,8 +379,8 @@ def test_images():
 
 
 def main():
-    #generate_retrieval_dataset(path='retrieval_dataset', num_images=50)
-    test_images()
+    generate_retrieval_dataset(path='retrieval_dataset', num_images=50)
+    #test_images()
     print("done")
 
 if __name__ == "__main__":
