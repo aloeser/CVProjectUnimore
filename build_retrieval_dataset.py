@@ -1,6 +1,7 @@
 import json
 import math
 import shutil
+from tqdm import tqdm
 
 import cv2 as cv
 import numpy as np
@@ -87,8 +88,8 @@ def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxR
     if (circles is None):
         print("No circles found.")
         raise Exception("No circles found.")
-    elif len(circles) != 1:
-        print("More than one circle found.")
+    elif circles.shape == (4,1):
+        # print("More than one circle found.")
         # For some images, the detection fails and openCV returns a shape of (4,1).
         # I cannot find this behaviour in the documentation, so maybe it is a bug
         # Best fix so far: guess the circle's position
@@ -99,7 +100,7 @@ def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxR
         x_ctr, y_ctr, r = circles[0]
         #cv.circle(inp_pic, (125, 125), r, color=(0, 0, 0), thickness=4, lineType=8, shift=0)
         #cv.imshow('circle in inp_pic', inp_pic)
-        print("1 circle found. radius: ", r, ", center coordinate: (", x_ctr, ",", y_ctr, ")")
+        # print("1 circle found. radius: ", r, ", center coordinate: (", x_ctr, ",", y_ctr, ")")
         return x_ctr, y_ctr, r
 
 
@@ -348,7 +349,7 @@ def generate_retrieval_dataset(path='retrieval_dataset', num_images=50, format="
     os.makedirs(path)
 
     metadata = {}
-    for img_index in range(num_images):
+    for img_index in tqdm(range(num_images)):
         try:
             img, meta = generate_retrieval_image(h=256, w=256, coin_amt_mean=5, do_homographic_transform=do_homographic_transform)
             metadata[img_index] = meta
@@ -374,14 +375,15 @@ def test_images():
         if x is None:
             failed_paths.append(path.name)
 
-    for path in failed_paths:
-        print(path)
+    if len(failed_paths) > 0:
+        print("coin extraction failed for the following paths:")
+        for path in failed_paths:
+            print("  "  + path)
 
 
 def main():
     generate_retrieval_dataset(path='retrieval_dataset', num_images=50)
     #test_images()
-    print("done")
 
 if __name__ == "__main__":
     main()
