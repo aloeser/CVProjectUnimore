@@ -1,4 +1,6 @@
-data
-retrieval_dataset
 .idea
+data
+scraper_log.txt
+cnn_dataset
+retrieval_dataset
 __pycache__
