@@ -140,9 +140,7 @@ def resize_pic(inp_pic, x=64, y=64):
     :param y: y, height
     :return: output picture
     """
-    r = x / y
-    dim = (x, int(x * r))
-    out_pic = cv.resize(inp_pic, dim, interpolation=cv.INTER_AREA)
+    out_pic = cv.resize(inp_pic, (y, x), interpolation=cv.INTER_AREA)
     return out_pic
 
 def rotate_extract_coin(inp_pic, phi, new_size):
