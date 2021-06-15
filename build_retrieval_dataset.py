@@ -289,7 +289,7 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
     labels = {200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0, 2: 0, 1: 0, 'sum': 0, 'num_coins': 0} # 'background': background_color}
 
     # coin_amt = gaussian(coin_amt_mean, var=1)
-    coin_amt = coin_amt_mean
+    coin_amt = np.ceil(np.random.normal(coin_amt_mean, scale=2))
 
     # List of existing coins, given by their center coordinates and radius
     existing_coin_positions = []
@@ -341,7 +341,7 @@ def generate_retrieval_dataset(path='retrieval_dataset', num_images=50, format="
     metadata = {}
     for img_index in tqdm(range(num_images)):
         try:
-            img, meta = generate_retrieval_image(h=256, w=256, coin_amt_mean=5, do_homographic_transform=do_homographic_transform)
+            img, meta = generate_retrieval_image(h=256, w=256, coin_amt_mean=9, do_homographic_transform=do_homographic_transform)
             metadata[img_index] = meta
             cv.imwrite(os.path.join(path, f"{img_index}.{format}"), img)
         except Exception:
