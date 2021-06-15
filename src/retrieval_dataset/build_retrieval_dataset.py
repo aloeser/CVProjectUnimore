@@ -9,7 +9,7 @@ import random
 import os
 import background_generator
 
-def random_coin(countries=['Germany', 'Italy'], cents=[200, 100, 50, 20, 10, 5, 2, 1], data_path='data'):
+def random_coin(countries=['Austria', 'Belgium', 'Finland', 'France', 'Germany', 'Ireland', 'Italy', 'Luxemburg', 'Netherlands', 'Portugal', 'Spain'], cents=[200, 100, 50, 20, 10, 5, 2, 1], data_path='data'):
     """
     Returns a random coin.
     :param countries: the list of countries to choose from
