@@ -65,7 +65,7 @@ def rotate_pic(inp_pic, phi):
     return out_pic
 
 
-def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxRadius=190):
+def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=120, maxRadius=130):
     """
     Detects a circle (through Hough Transformation) and returns the coordinates (x_ctr, y_ctr, r)
     :param inp_pic: input picture
@@ -84,7 +84,8 @@ def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxR
         inp_pic_grey_blurred = cv.GaussianBlur(inp_pic_grey, (9,9), 2, 2)
     #cv.imshow("grey_blurred", inp_pic_grey_blurred)
     # HoughCircles(image, method, dp, minDist, circles=None, param1=None, param2=None, minRadius=None, maxRadius=None)
-    circles = cv.HoughCircles(inp_pic_grey_blurred, cv.HOUGH_GRADIENT, hough_dp, 20, minRadius, maxRadius) #minDist = 20
+    # if circles=None no circles found
+    circles = cv.HoughCircles(inp_pic_grey_blurred, cv.HOUGH_GRADIENT, hough_dp, circles=1, minDist=20, minRadius=minRadius, maxRadius=maxRadius)
     if (circles is None):
         print("No circles found.")
         raise Exception("No circles found.")
@@ -102,7 +103,6 @@ def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=180, maxR
         #cv.imshow('circle in inp_pic', inp_pic)
         # print("1 circle found. radius: ", r, ", center coordinate: (", x_ctr, ",", y_ctr, ")")
         return x_ctr, y_ctr, r
-
 
 def create_masks(x_ctr, y_ctr, r, x=250, y=250):
     """
@@ -122,7 +122,6 @@ def create_masks(x_ctr, y_ctr, r, x=250, y=250):
     mask_inv = cv.bitwise_not(mask)
     return mask, mask_inv
 
-
 def extract_coin(inp_pic, mask):
     """
     Takes an image and extracts the coin with respect to the given coin-mask.
@@ -132,7 +131,6 @@ def extract_coin(inp_pic, mask):
     """
     out_pic = cv.bitwise_and(inp_pic, inp_pic, mask=mask)
     return out_pic
-
 
 def resize_pic(inp_pic, x=64, y=64):
     """
@@ -146,7 +144,6 @@ def resize_pic(inp_pic, x=64, y=64):
     dim = (x, int(x * r))
     out_pic = cv.resize(inp_pic, dim, interpolation=cv.INTER_AREA)
     return out_pic
-
 
 def rotate_extract_coin(inp_pic, phi, new_size):
     """
@@ -178,7 +175,6 @@ def rotate_extract_coin(inp_pic, phi, new_size):
     #cv.imshow("final_pic", final_pic)
 
     return out_pic, mask_inv
-
 
 def get_insertable_position(target_img_shape, coin_radius, existing_coin_positions, max_attempts=10):
     """
@@ -221,7 +217,6 @@ def get_insertable_position(target_img_shape, coin_radius, existing_coin_positio
     # if the loops exits without a return, we could not find a valid position. Return None
     return None, None
 
-
 def insert_coin_to_position(target_img, center_y, center_x, coin_radius, coin_only_img, inverted_mask):
     """
     Inserts the coin image into the target image
@@ -239,7 +234,6 @@ def insert_coin_to_position(target_img, center_y, center_x, coin_radius, coin_on
     background = cv.bitwise_and(target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw], target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw], mask=inverted_mask)
     final_image = cv.add(coin_only_img, background)
     target_img[topleft_y:topleft_y+ch, topleft_x:topleft_x+cw] = final_image
-
 
 def perform_homographic_transform(retrieval_img, target_shape = None):
     """
@@ -260,7 +254,6 @@ def perform_homographic_transform(retrieval_img, target_shape = None):
     h, status = cv.findHomography(pts_src, pts_dst)
     return cv.warpPerspective(retrieval_img, h, (target_w, target_h))
 
-
 def get_real_coin_size(coin_value, two_euro_reference_size=64):
     """
     Returns the size physical size of a coin, assuming a 2€ coin is two_euro_reference_size pixels wide
@@ -272,7 +265,6 @@ def get_real_coin_size(coin_value, two_euro_reference_size=64):
     coin_sizes_mm = {200: 2575, 100: 2325, 50: 2425, 20: 2225, 10: 1975, 5: 2125, 2: 1875, 1: 1625}
     scale_factor = coin_sizes_mm[coin_value] / coin_sizes_mm[200]
     return int(scale_factor * two_euro_reference_size)
-
 
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do_homographic_transform=True):
     """
@@ -361,7 +353,6 @@ def generate_retrieval_dataset(path='retrieval_dataset', num_images=50, format="
         json.dump(metadata, f, indent=2)
 
 
-
 def test_images():
     from pathlib import Path
 
@@ -379,7 +370,6 @@ def test_images():
         print("coin extraction failed for the following paths:")
         for path in failed_paths:
             print("  "  + path)
-
 
 def main():
     generate_retrieval_dataset(path='retrieval_dataset', num_images=50)
