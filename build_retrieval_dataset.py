@@ -274,6 +274,12 @@ def get_real_coin_size(coin_value, two_euro_reference_size=64):
     return int(scale_factor * two_euro_reference_size)
 
 
+def center_crop(img, new_h, new_w):
+    old_h, old_w = img.shape[:2]
+    off_w = (old_w - new_w) // 2
+    off_h = (old_h - new_h) // 2
+    return img[off_h:off_h+new_h, off_w:off_w+new_w, :]
+
 def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do_homographic_transform=True):
     """
     Returns an retrieval image with the given height, width and amount of coins; and a set of labels.
@@ -309,6 +315,9 @@ def generate_retrieval_image(data_path='data', h=256, w=256, coin_amt_mean=9, do
     while hashtag_coins < coin_amt:
         # get coin from data
         coin_value, coin_img = random_coin(data_path=data_path)
+        new_size = min(coin_img.shape[0], coin_img.shape[1])
+        coin_img = center_crop(coin_img, new_size, new_size)
+        assert coin_img.shape[0] == coin_img.shape[1]
 
         # scale, rotate, remove background
         phi = np.random.randint(0, 360)
@@ -382,7 +391,7 @@ def test_images():
 
 
 def main():
-    generate_retrieval_dataset(path='retrieval_dataset', num_images=50)
+    generate_retrieval_dataset(path='retrieval_dataset', num_images=50, do_homographic_transform=False)
     #test_images()
 
 if __name__ == "__main__":
