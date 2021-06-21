@@ -376,7 +376,7 @@ def test_images():
             print("  "  + path)
 
 def main():
-    generate_retrieval_dataset(path='retrieval_dataset', num_images=50, do_homographic_transform=False)
+    generate_retrieval_dataset(path='retrieval_dataset', num_images=100, do_homographic_transform=False)
     #test_images()
 
 if __name__ == "__main__":
