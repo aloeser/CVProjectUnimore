@@ -115,6 +115,10 @@ def print_output_coins_conc(output_vector):
 
 # help functions for KEY fct 3
 def create_empty_coin_dic():
+    """
+    Creating an empty coin dictionary. All coin 'keys' in cents all 'values' initial set to zero.
+    :return: coin dictionary
+    """
     coin_dic = {
         "100": 0,
         "1": 0,
@@ -127,6 +131,11 @@ def create_empty_coin_dic():
     }
     return coin_dic
 def get_amt_sum(coin_dic):
+    """
+    Returns amount of coins and predicted sum in the picture.
+    :param coin_dic: coin dictionary with predictions
+    :return: amount of coins, predicted sum
+    """
     keys = [int(i) for i in coin_dic.keys()]
     values = list(coin_dic.values())
     coin_amt = sum(values)
@@ -135,6 +144,11 @@ def get_amt_sum(coin_dic):
 
 # KEY fct 3 (cnn)
 def get_pred_data(output_vector):
+    """
+    Returns all predicted data from given output vector of an input picture.
+    :param output_vector: vector containing all coins with 64x64x3 shape
+    :return: coin amount, predicted sum, coin dictionary
+    """
     coin_dic = create_empty_coin_dic()
     for img in output_vector:
         cent = cnn_test.get_prediction(img)
@@ -144,6 +158,11 @@ def get_pred_data(output_vector):
 
 # PRINT (one pic)
 def print_one_pic_sol(inp_pic):
+    """
+    Prints the CNN predicted data, shows input picture (also with detected circles) and associated output vector.
+    :param inp_pic: single input picture
+    :return: prints input picture, input picture with detected circles, concatenated output vector images
+    """
     # get all found circles [(x, y, r)] through hough_circle_detection
     circles = hough_circle_segmentation(inp_pic)
     # generate output vector with found circles in input picture
@@ -168,6 +187,12 @@ def print_one_pic_sol(inp_pic):
 
 # PRINT (n pic)
 def test_n_input_pic(n):
+    """
+    Testing the (0, ..., n-1) retrieval dataset input pictures through the 'Coin Segmentation' and the 'CNN prediction'.
+
+    :param n: amount of input pictures that should get tested from the retrieval_dataset starting from the first
+    :return: 'print_one_pic_sol' prints for every retrieval dataset input picture
+    """
     data_len = len(os.listdir("retrieval_dataset")) - 1
 
     for i in range(data_len)[0:n]:
