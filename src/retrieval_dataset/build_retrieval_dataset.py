@@ -38,7 +38,6 @@ def random_coin(countries=['Austria', 'Belgium', 'Finland', 'France', 'Germany',
 
     return coin_value, cv.imread(coin_file)
 
-
 def create_bgr_image(height, width, bg=(0,0,0)):
     """
     Creates a image with the given height, width, and background.
@@ -51,7 +50,6 @@ def create_bgr_image(height, width, bg=(0,0,0)):
     img[:, :] = bg
     return img
 
-
 def rotate_pic(inp_pic, phi):
     """
     Rotates an input picture counter-clockwise around its center with an given angle.
@@ -63,7 +61,6 @@ def rotate_pic(inp_pic, phi):
     matrix = cv.getRotationMatrix2D((x / 2, y / 2), phi, 1.0)
     out_pic = cv.warpAffine(inp_pic, matrix, (x, y))
     return out_pic
-
 
 def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=120, maxRadius=130):
     """
