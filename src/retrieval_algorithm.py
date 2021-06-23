@@ -21,18 +21,18 @@ def annotate_retrieval_database(path):
         json.dump(annotations, out, indent=2)
 
 
-def build_retrieval_database(path, num_images, homographic_transform, annotate_only):
+def generate_retrieval_database(path, num_images, homographic_transform, annotate_only):
     if not annotate_only:
         generate_retrieval_dataset(path=path, num_images=num_images, do_homographic_transform=homographic_transform)
     annotate_retrieval_database(path)
 
 
-def perform_retrieval(file, retrieval_database_path, first_k,  show_output):
+def perform_retrieval(file, retrieval_database_path, first_k,  dont_show_output):
     # TODO: if we call this function for more than one image, the retrieval engine should be stored
     retrieval_engine = RetrievalEngine(retrieval_database_path)
     first_k = retrieval_engine.most_similar(file, first_k)
 
-    if show_output:
+    if not dont_show_output:
         query_img = cv.imread(file)
         target_coin_value_sum = predict(query_img)['sum']
         cv.imshow(f"Query Image, Sum: {target_coin_value_sum}", query_img)
@@ -45,17 +45,35 @@ def perform_retrieval(file, retrieval_database_path, first_k,  show_output):
         return first_k
 
 def main():
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('input file', nargs=1,
-                        help='name of the input file')
-    parser.add_argument('--build_retrieval_database', dest='accumulate', action='store_const',
-                        const=sum, default=max,
-                        help='sum the integers (default: find the max)')
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(required=True, dest="subparser_name")
+    generator_parser = subparsers.add_parser('generate')
+    generator_parser.add_argument('--path', help='path where the generated retrieval database is stored', default='retrieval_database')
+    generator_parser.add_argument('-n', '--num_images', type=int, default=200)
+    generator_parser.add_argument('--homographic_transform', action='store_true')
+    generator_parser.add_argument('--annotate_only', action='store_true')
 
+    retrieval_parser = subparsers.add_parser('run')
+    retrieval_parser.add_argument('--input',
+                                  help='path of the input image',
+                                  required=True)
+    retrieval_parser.add_argument('--retrieval_database_path', help='path where the generated retrieval database is stored',
+                                  default='retrieval_database')
+    retrieval_parser.add_argument('-k', '--first_k', type=int, default=10)
+    retrieval_parser.add_argument('--dont_show_output', action='store_true')
+    #bar_parser = subparsers.add_parser('retrieve')
     #build_retrieval_database('retrieval_database', 200, False, False)
-    perform_retrieval('retrieval_dataset/0.png', 'retrieval_database', 10, True)
-    #args = parser.parse_args()
-    #print(args.accumulate(args.integers))
+    #perform_retrieval('retrieval_dataset/0.png', 'retrieval_database', 10, True)
+    args = parser.parse_args()
+
+    if args.subparser_name == "generate":
+        generate_retrieval_database(path=args.path, num_images=args.num_images, homographic_transform=args.homographic_transform, annotate_only=args.annotate_only)
+    elif args.subparser_name == "run":
+        perform_retrieval(file=args.input, retrieval_database_path=args.retrieval_database_path, first_k=args.first_k, dont_show_output=args.dont_show_output)
+    else:
+        raise Exception("Invalid command, only generate and run are supported")
+
+
 
 if __name__ == "__main__":
     main()
