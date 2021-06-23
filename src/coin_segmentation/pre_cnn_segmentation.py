@@ -91,8 +91,10 @@ def generate_output_vec(inp_pic, circles):
     """
     all_coin_outputs = []
     mask = create_masks(31, 31, 31, 64, 64)[0]  # black background, white circle mask
-    for i  in circles:
-        x, y, r = i
+    for (x, y, r) in circles:
+        if r > x or r > y or x + r >= inp_pic.shape[1] or y + r >= inp_pic.shape[0]:
+            continue
+        assert x >= r and y >= r and x + r < inp_pic.shape[1] and y + r < inp_pic.shape[0]
         curr_coin_area = inp_pic[y-r : y+r, x-r : x+r]                     # select roi (region of interest)
         curr_coin = resize_pic(curr_coin_area)                             # 64 x 64 resize
         curr_coin_output = cv.bitwise_and(curr_coin, curr_coin, mask=mask) # resized roi with black background
