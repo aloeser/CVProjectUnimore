@@ -6,6 +6,7 @@ import tqdm
 
 from coin_segmentation.pre_cnn_segmentation import predict
 from retrieval_dataset.build_retrieval_dataset import generate_retrieval_dataset
+from retrieval_engine import RetrievalEngine
 
 def annotate_retrieval_database(path):
     retrieval_files = [os.path.join(path, f) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f.endswith('.png')]
@@ -20,9 +21,28 @@ def annotate_retrieval_database(path):
         json.dump(annotations, out, indent=2)
 
 
-def build_retrieval_database(path, num_images, homographic_transform):
-    generate_retrieval_dataset(path=path, num_images=num_images, do_homographic_transform=homographic_transform)
+def build_retrieval_database(path, num_images, homographic_transform, annotate_only):
+    if not annotate_only:
+        generate_retrieval_dataset(path=path, num_images=num_images, do_homographic_transform=homographic_transform)
     annotate_retrieval_database(path)
+
+
+def perform_retrieval(file, retrieval_database_path, first_k,  show_output):
+    # TODO: if we call this function for more than one image, the retrieval engine should be stored
+    retrieval_engine = RetrievalEngine(retrieval_database_path)
+    first_k = retrieval_engine.most_similar(file, first_k)
+
+    if show_output:
+        query_img = cv.imread(file)
+        target_coin_value_sum = predict(query_img)['sum']
+        cv.imshow(f"Query Image, Sum: {target_coin_value_sum}", query_img)
+        for position, (score, coin_sum, img_file) in enumerate(first_k):
+            img = cv.imread(img_file)
+            cv.imshow(f"Position {position+1}, Sum: {coin_sum}, Score: {score}, File: {os.path.basename(img_file).split('.')[0]}", img)
+        cv.waitKey()
+        cv.destroyAllWindows()
+    else:
+        return first_k
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -32,7 +52,8 @@ def main():
                         const=sum, default=max,
                         help='sum the integers (default: find the max)')
 
-    build_retrieval_database('retrieval_database', 200, False)
+    #build_retrieval_database('retrieval_database', 200, False, False)
+    perform_retrieval('retrieval_dataset/0.png', 'retrieval_database', 10, True)
     #args = parser.parse_args()
     #print(args.accumulate(args.integers))
 
