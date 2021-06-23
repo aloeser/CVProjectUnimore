@@ -202,7 +202,7 @@ def test_n_input_pic(n):
 
 
 def main():
-    test_n_input_pic(n=3)
+    test_n_input_pic(n=2)
 
 
 if __name__ == "__main__":

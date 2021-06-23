@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from moresnet import MOREsNet
 
-global model
 model = MOREsNet(in_channels=3, num_classes=8, load_pretrained='./moresnet.tar')
 
 def which_coin(pred_vector):
@@ -57,14 +56,13 @@ def get_prediction(img):
 
 def main():
     # load model and get predicted CNN output vector for example picture
-    #model = MOREsNet(in_channels=3, num_classes=8, load_pretrained='./moresnet.tar')
-    img = cv.imread('./cnn_dataset/root/1/italy-1-euro-2011-front.png')
-    input_pic = img_preprocessing(img)
+    test_img = cv.imread('./cnn_dataset/root/1/italy-1-euro-2011-front.png', cv.IMREAD_UNCHANGED)
+    input_pic = img_preprocessing(test_img)
     cent = run_model(model, input_pic)
 
     # print CNN prediction, input image
     print(cent, 'cent')
-    cv.imshow('inp_img', img)
+    cv.imshow('inp_img', test_img)
     # windows management
     cv.waitKey()
     cv.destroyAllWindows()
