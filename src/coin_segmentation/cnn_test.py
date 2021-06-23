@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 import torch
-from moresnet import MOREsNet
+from .moresnet import MOREsNet
 
 model = MOREsNet(in_channels=3, num_classes=8, load_pretrained='./moresnet.tar')
 

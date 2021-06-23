@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 import os
-import cnn_test
+from . import cnn_test
 
 ##
 
@@ -31,7 +31,7 @@ def hough_circle_segmentation(inp_pic, blur_strgth="low"):
     if (circles is None):
         print("No circles found.")
     else:
-        print("Circle/s found.")
+        #print("Circle/s found.")
         circles = np.uint16(np.around(circles))
         return circles[0,:]
 def print_circles_in_pic(inp_pic, circles):
@@ -91,8 +91,10 @@ def generate_output_vec(inp_pic, circles):
     """
     all_coin_outputs = []
     mask = create_masks(31, 31, 31, 64, 64)[0]  # black background, white circle mask
-    for i  in circles:
-        x, y, r = i
+    for (x, y, r) in circles:
+        if r > x or r > y or x+r >= inp_pic.shape[1] or y+r >= inp_pic.shape[0]:
+            continue
+        assert x >= r and y >= r and x+r < inp_pic.shape[1] and y+r < inp_pic.shape[0]
         curr_coin_area = inp_pic[y-r : y+r, x-r : x+r]                     # select roi (region of interest)
         curr_coin = resize_pic(curr_coin_area)                             # 64 x 64 resize
         curr_coin_output = cv.bitwise_and(curr_coin, curr_coin, mask=mask) # resized roi with black background
@@ -184,6 +186,14 @@ def print_one_pic_sol(inp_pic):
     # window management
     cv.waitKey(0)
     cv.destroyAllWindows()
+
+def predict(image):
+    circles = hough_circle_segmentation(image)
+    output_vector = generate_output_vec(image, circles)
+    coin_amt, pred_sum, coin_dic = get_pred_data(output_vector)
+    coin_dic['sum'] = int(pred_sum)
+    coin_dic['num_coins'] = coin_amt
+    return coin_dic
 
 # PRINT (n pic)
 def test_n_input_pic(n):

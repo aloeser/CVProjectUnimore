@@ -7,7 +7,7 @@ import cv2 as cv
 import numpy as np
 import random
 import os
-import background_generator
+from . import background_generator
 
 def random_coin(countries=['Austria', 'Belgium', 'Finland', 'France', 'Germany', 'Ireland', 'Italy', 'Luxemburg', 'Netherlands', 'Portugal', 'Spain'], cents=[200, 100, 50, 20, 10, 5, 2, 1], data_path='data'):
     """
@@ -345,7 +345,7 @@ def generate_retrieval_dataset(path='retrieval_dataset', num_images=50, format="
     os.makedirs(path)
 
     metadata = {}
-    for img_index in tqdm(range(num_images)):
+    for img_index in tqdm(range(num_images), desc='Dataset Generation'):
         try:
             img, meta = generate_retrieval_image(h=256, w=256, coin_amt_mean=9, do_homographic_transform=do_homographic_transform)
             metadata[img_index] = meta
