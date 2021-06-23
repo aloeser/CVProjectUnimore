@@ -1,9 +1,11 @@
 import cv2 as cv
 import numpy as np
 import os
+import cnn_test
 
 ##
 
+# KEY fct 1 + print
 def hough_circle_segmentation(inp_pic, blur_strgth="low"):
     """
     Gets random input picture from retrieval_dataset with multiple coins.
@@ -32,7 +34,6 @@ def hough_circle_segmentation(inp_pic, blur_strgth="low"):
         print("Circle/s found.")
         circles = np.uint16(np.around(circles))
         return circles[0,:]
-
 def print_circles_in_pic(inp_pic, circles):
     """
     Copies input picture and draws given circles in it and shows them.
@@ -50,6 +51,7 @@ def print_circles_in_pic(inp_pic, circles):
 
 ##
 
+# help functions for KEY fct 2
 def resize_pic(inp_pic, x=64, y=64):
     """
     Resize a 250x250 input picture to 64x64 output picture.
@@ -60,7 +62,6 @@ def resize_pic(inp_pic, x=64, y=64):
     """
     out_pic = cv.resize(inp_pic, (y, x), interpolation=cv.INTER_AREA)
     return out_pic
-
 def create_masks(x_ctr, y_ctr, r, x=250, y=250):
     """
     Creates mask (and inverted mask) with specific size (y, x) and white (black) circle (x_ctr, y_ctr, r) in it.
@@ -79,7 +80,8 @@ def create_masks(x_ctr, y_ctr, r, x=250, y=250):
     mask_inv = cv.bitwise_not(mask)
     return mask, mask_inv
 
-def generate_cnn_input(inp_pic, circles):
+# KEY fct 2 + print
+def generate_output_vec(inp_pic, circles):
     """
     Collects all detected circles/coins for a single input picture
     sizes them 64x64 with black background and saves them in output vector(segmentation)/input vector(cnn).
@@ -97,8 +99,7 @@ def generate_cnn_input(inp_pic, circles):
         all_coin_outputs.append(curr_coin_output)
     output_vector = np.array(all_coin_outputs)
     return output_vector
-
-def print_cnn_input_vector(output_vector):
+def print_output_coins_conc(output_vector):
     """
     Returns a output picture of all images from output_vector/cnn_input_vector horizontally concatenated.
     :param output_vector: input image vector
@@ -112,22 +113,69 @@ def print_cnn_input_vector(output_vector):
 
 ##
 
-def find_circles_gen_cnn_input_single_pic(inp_pic):
+# help functions for KEY fct 3
+def create_empty_coin_dic():
+    """
+    Creating an empty coin dictionary. All coin 'keys' in cents all 'values' initial set to zero.
+    :return: coin dictionary
+    """
+    coin_dic = {
+        "100": 0,
+        "1": 0,
+        "200": 0,
+        "2": 0,
+        "5": 0,
+        "10": 0,
+        "20": 0,
+        "50": 0
+    }
+    return coin_dic
+def get_amt_sum(coin_dic):
+    """
+    Returns amount of coins and predicted sum in the picture.
+    :param coin_dic: coin dictionary with predictions
+    :return: amount of coins, predicted sum
+    """
+    keys = [int(i) for i in coin_dic.keys()]
+    values = list(coin_dic.values())
+    coin_amt = sum(values)
+    pred_sum = np.dot(keys, values)
+    return coin_amt, pred_sum
+
+# KEY fct 3 (cnn)
+def get_pred_data(output_vector):
+    """
+    Returns all predicted data from given output vector of an input picture.
+    :param output_vector: vector containing all coins with 64x64x3 shape
+    :return: coin amount, predicted sum, coin dictionary
+    """
+    coin_dic = create_empty_coin_dic()
+    for img in output_vector:
+        cent = cnn_test.get_prediction(img)
+        coin_dic[str(cent)] += 1
+    coin_amt, pred_sum = get_amt_sum(coin_dic)
+    return coin_amt, pred_sum, coin_dic
+
+# PRINT (one pic)
+def print_one_pic_sol(inp_pic):
+    """
+    Prints the CNN predicted data, shows input picture (also with detected circles) and associated output vector.
+    :param inp_pic: single input picture
+    :return: prints input picture, input picture with detected circles, concatenated output vector images
+    """
     # get all found circles [(x, y, r)] through hough_circle_detection
     circles = hough_circle_segmentation(inp_pic)
+    # generate output vector with found circles in input picture
+    output_vector = generate_output_vec(inp_pic, circles)
+
+    # predict with cnn the sum from the coin dictionary
+    coin_amt, pred_sum, coin_dic = get_pred_data(output_vector)
+    print('# detected coins:', coin_amt, '\npredicted sum:', pred_sum, 'cent', '\ncoin dictionary:', coin_dic)
 
     # generate input picture with circles
     inp_pic_circles = print_circles_in_pic(inp_pic, circles)
-    # creating the output vector with circles
-    output_vector = generate_cnn_input(inp_pic, circles)
-
-    # generate cnn input vector
-    conc_output_vector = print_cnn_input_vector(output_vector)
-
-    return inp_pic_circles, conc_output_vector
-
-def print_one_pic_sol(inp_pic):
-    inp_pic_circles, conc_output_vector = find_circles_gen_cnn_input_single_pic(inp_pic)
+    # generate output pictures with concatinated coins
+    conc_output_vector = print_output_coins_conc(output_vector)
 
     cv.imshow('input pic', inp_pic)
     cv.imshow('inp pic with circles', inp_pic_circles)
@@ -137,17 +185,24 @@ def print_one_pic_sol(inp_pic):
     cv.waitKey(0)
     cv.destroyAllWindows()
 
+# PRINT (n pic)
 def test_n_input_pic(n):
+    """
+    Testing the (0, ..., n-1) retrieval dataset input pictures through the 'Coin Segmentation' and the 'CNN prediction'.
+
+    :param n: amount of input pictures that should get tested from the retrieval_dataset starting from the first
+    :return: 'print_one_pic_sol' prints for every retrieval dataset input picture
+    """
     data_len = len(os.listdir("retrieval_dataset")) - 1
 
-    for i in range(data_len)[0:n]:  # just 3 pic's
+    for i in range(data_len)[0:n]:
         pic_path = 'retrieval_dataset/%s.png' % i
         curr_pic = cv.imread(pic_path, cv.IMREAD_UNCHANGED)
         print_one_pic_sol(curr_pic)
 
 
 def main():
-    test_n_input_pic(5)
+    test_n_input_pic(n=3)
 
 
 if __name__ == "__main__":
