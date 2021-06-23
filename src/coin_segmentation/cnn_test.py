@@ -3,6 +3,9 @@ import numpy as np
 import torch
 from moresnet import MOREsNet
 
+global model
+model = MOREsNet(in_channels=3, num_classes=8, load_pretrained='./moresnet.tar')
+
 def which_coin(pred_vector):
     """
     Gets predicted output vector and returns cent accordingly to highest probability.
@@ -48,14 +51,13 @@ def get_prediction(img):
     :return: cent value prediction of coin
     """
     # load model and get predicted CNN output vector
-    model = MOREsNet(in_channels=3, num_classes=8, load_pretrained='./moresnet.tar')
     input_pic = img_preprocessing(img)
     cent = run_model(model, input_pic)
     return cent
 
 def main():
     # load model and get predicted CNN output vector for example picture
-    model = MOREsNet(in_channels=3, num_classes=8, load_pretrained='./moresnet.tar')
+    #model = MOREsNet(in_channels=3, num_classes=8, load_pretrained='./moresnet.tar')
     img = cv.imread('./cnn_dataset/root/1/italy-1-euro-2011-front.png')
     input_pic = img_preprocessing(img)
     cent = run_model(model, input_pic)
