@@ -23,6 +23,7 @@ def hough_circle_segmentation(inp_pic, blur_strgth="low"):
     cv.imshow('gray/blurred', shifted_img_grey_blurred)
     cv.imshow('draw pic (contours)', draw_pic)
     cv.imshow('corr img', corr_img)
+    
     cv.imshow('corr img gray/blurred', corr_img_grey_blurred)
 
     # HoughCircles(image, method, dp, minDist, circles=None, param1=None, param2=None, minRadius=None, maxRadius=None)
@@ -163,7 +164,7 @@ def print_one_pic_sol(inp_pic):
     :param inp_pic: single input picture
     :return: prints input picture, input picture with detected circles, concatenated output vector images
     """
-    # get all found circles [(x, y, r)] through hough_circle_detection
+    # correct input picture and get all found circles [(x, y, r)] through hough_circle_detection
     corr_img, circles, corr_img_grey_blurred = hough_circle_segmentation(inp_pic)
 
     # show found circles in corr_img_grey_blurred
