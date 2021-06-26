@@ -244,8 +244,9 @@ def perform_homographic_transform(retrieval_img, target_shape = None):
         target_shape = retrieval_img.shape[:2]
     target_h, target_w = target_shape
 
-    pts_src = np.array([[0, 0], [0, w], [h, 0], [h, w]])
-    pts_dst = np.array([[0, 0], [int(0.2*target_w), target_h], [target_w, 0], [int(0.8*target_w), target_h]])
+    pts_src = np.array([[0, 0], [0, h], [w, 0], [w, h]])
+    # pts_dst = np.array([[0, 0], [int(0.2*target_w), target_h], [target_w, 0], [int(0.8*target_w), target_h]])
+    pts_dst = np.array([[0, 0], [int(0.2 * target_w), target_h], [int(0.8 * target_w), 0], [int(target_w), target_h]]) # parallel shift
     h, status = cv.findHomography(pts_src, pts_dst)
     return cv.warpPerspective(retrieval_img, h, (target_w, target_h))
 

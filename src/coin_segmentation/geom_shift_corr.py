@@ -63,6 +63,9 @@ def find_corr_matrix(shifted_img, ellipse):
     mtrx = M
     return mtrx
 
+def find_corr_mtrx_box(shifted_img, bb):
+    pass
+
 def corr_pic(shifted_img, blur_strgth):
     # copy for a picture to show drawings
     draw_pic = shifted_img.copy()
