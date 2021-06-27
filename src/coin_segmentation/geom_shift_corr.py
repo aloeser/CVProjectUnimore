@@ -42,16 +42,24 @@ def get_max_cnt_idx(contours):
         if np.array_equal(cnt, max_contour):
             cnt_idx = idx
     return max_contour, cnt_idx
-def find_corr_matrix(shifted_img, ellipse):
+
+def find_corr_matrix(shifted_img, obj):
     """
-    Finding a correcting matrix for the shifted image depending from the fitted ellipse
+    Finding a correcting matrix for the shifted image depending from the fitted object (ellipse/rectangle).
     :param shifted_img: shifted input image
     :param ellipse: ((center coordinates x, y), (scale 1, 2), angle)
     :return: matrix to correct fitted ellipse in shifted input image
     """
     # parameters
-    angle = ellipse[2]
-    scale_tmp = ellipse[1]
+    angle = obj[2]
+    """
+    finding smallest turning angle to correct maybe helpful..
+    if angle < -45:
+        angle = -(90 + angle)
+    else:
+        angle = -angle
+    """
+    scale_tmp = obj[1]
     scale = scale_tmp[0] / scale_tmp[1]
 
     # rotation matrix
@@ -62,9 +70,6 @@ def find_corr_matrix(shifted_img, ellipse):
     M[1, 2] = M[1, 2] * scale
     mtrx = M
     return mtrx
-
-def find_corr_mtrx_box(shifted_img, bb):
-    pass
 
 def corr_pic(shifted_img, blur_strgth):
     # copy for a picture to show drawings
@@ -86,17 +91,21 @@ def corr_pic(shifted_img, blur_strgth):
     # ((76.10218811035156, 119.91889953613281), (44.374759674072266, 62.04508590698242), 167.4716796875)
     cv.ellipse(draw_pic, ellipse, (255, 0, 0), 1)
 
-    # bounding box (red)
+    ## find bounding box (red)
+    # get rect (coordinates, scales, angle)
     rect = cv.minAreaRect(max_contour)
+    # get box corner coordinates
     box = cv.boxPoints(rect)
-    box = np.int0(box)
+    box = np.int0(box) # [[x1,y1],..,[x4,y4]] np arrays
+    # draw bounding box
     cv.drawContours(draw_pic, [box], 0, (0, 0, 255), 1)
 
     #correcting the ellipse to circle
+    # mtrx = find_corr_matrix(shifted_img, rect)
     mtrx = find_corr_matrix(shifted_img, ellipse)
 
     # apply transform
-    corr_img = cv.warpAffine(shifted_img, mtrx, (256, 256), borderValue=(0,0,0))
+    corr_img = cv.warpAffine(shifted_img, mtrx, (256, 256), flags=cv.INTER_CUBIC, borderValue=(0,0,0))
     corr_img_grey_blurred = cv.warpAffine(shifted_img_grey_blurred, mtrx, (256, 256))
 
     return corr_img_grey_blurred, corr_img, shifted_img_grey_blurred, draw_pic
