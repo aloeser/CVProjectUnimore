@@ -1,9 +1,10 @@
 import cv2 as cv
 import numpy as np
 import torch
-from .moresnet import MOREsNet
-
-model = MOREsNet(in_channels=3, num_classes=8, load_pretrained='./moresnet.tar')
+from .monete import MoNETe
+#from monete import MoNETe
+torch.manual_seed(0)
+model = MoNETe(in_channels=3, num_classes=8, load_pretrained='./src/coin_segmentation/monete.tar')
 
 def which_coin(pred_vector):
     """
@@ -56,10 +57,9 @@ def get_prediction(img):
 
 def main():
     # load model and get predicted CNN output vector for example picture
-    test_img = cv.imread('./cnn_dataset/root/1/italy-1-euro-2011-front.png', cv.IMREAD_UNCHANGED)
+    test_img = cv.imread('cnn_dataset/root/1/finland-1-euro-2013-back.png', cv.IMREAD_UNCHANGED)
     input_pic = img_preprocessing(test_img)
     cent = run_model(model, input_pic)
-
     # print CNN prediction, input image
     print(cent, 'cent')
     cv.imshow('inp_img', test_img)

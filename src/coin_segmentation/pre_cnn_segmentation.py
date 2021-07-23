@@ -1,7 +1,12 @@
 import cv2 as cv
 import numpy as np
 import os
+#<<<<<<< HEAD
 from . import cnn_test
+#=======
+from . import cnn_test
+from . import geom_shift_corr
+#>>>>>>> coin_segmentation
 
 ##
 
@@ -14,26 +19,26 @@ def hough_circle_segmentation(inp_pic, blur_strgth="low"):
     :param blur_strgth: low or high
     :return: list of (x,y,r) circles
     """
-    # greying the input picture
-    inp_pic_grey = cv.cvtColor(inp_pic, cv.COLOR_BGR2GRAY)
-    #cv.imshow("grey_pic", inp_pic_grey)
+    # Correcting the geometric shift
+    corr_img_grey_blurred, corr_img, shifted_img_grey_blurred, draw_pic = geom_shift_corr.corr_pic(inp_pic, blur_strgth)
 
-    # blurring with 2 options
-    if blur_strgth == "low":
-        inp_pic_grey_blurred = cv.GaussianBlur(inp_pic_grey, (3,3), 1, 1)
-    elif blur_strgth == "high":
-        inp_pic_grey_blurred = cv.GaussianBlur(inp_pic_grey, (9,9), 2, 2)
-    #cv.imshow("grey_blurred", inp_pic_grey_blurred)
+    # printing pictures
+    #cv.imshow("shifted image", inp_pic)
+    #cv.imshow('gray/blurred', shifted_img_grey_blurred)
+    #cv.imshow('draw pic (contours)', draw_pic)
+    #cv.imshow('corr img', corr_img)
+    
+    #cv.imshow('corr img gray/blurred', corr_img_grey_blurred)
 
     # HoughCircles(image, method, dp, minDist, circles=None, param1=None, param2=None, minRadius=None, maxRadius=None)
-    circles = cv.HoughCircles(inp_pic_grey_blurred, cv.HOUGH_GRADIENT, dp=1, minDist=20, param1 = 200, param2 = 30, minRadius = 0, maxRadius = 0)
+    circles = cv.HoughCircles(corr_img_grey_blurred, cv.HOUGH_GRADIENT, dp=1, minDist=20, param1 = 200, param2 = 30, minRadius=0, maxRadius=0)
 
     if (circles is None):
-        print("No circles found.")
+        return corr_img, [], corr_img_grey_blurred
     else:
         #print("Circle/s found.")
         circles = np.uint16(np.around(circles))
-        return circles[0,:]
+        return corr_img, circles[0,:], corr_img_grey_blurred
 def print_circles_in_pic(inp_pic, circles):
     """
     Copies input picture and draws given circles in it and shows them.
@@ -91,6 +96,7 @@ def generate_output_vec(inp_pic, circles):
     """
     all_coin_outputs = []
     mask = create_masks(31, 31, 31, 64, 64)[0]  # black background, white circle mask
+
     for (x, y, r) in circles:
         if r > x or r > y or x+r >= inp_pic.shape[1] or y+r >= inp_pic.shape[0]:
             continue
@@ -165,21 +171,24 @@ def print_one_pic_sol(inp_pic):
     :param inp_pic: single input picture
     :return: prints input picture, input picture with detected circles, concatenated output vector images
     """
-    # get all found circles [(x, y, r)] through hough_circle_detection
-    circles = hough_circle_segmentation(inp_pic)
+    # correct input picture and get all found circles [(x, y, r)] through hough_circle_detection
+    corr_img, circles, corr_img_grey_blurred = hough_circle_segmentation(inp_pic)
+
+    # show found circles in corr_img_grey_blurred
+    cv.imshow("detected circles", print_circles_in_pic(corr_img_grey_blurred, circles))
+
     # generate output vector with found circles in input picture
-    output_vector = generate_output_vec(inp_pic, circles)
+    output_vector = generate_output_vec(corr_img, circles)
 
     # predict with cnn the sum from the coin dictionary
     coin_amt, pred_sum, coin_dic = get_pred_data(output_vector)
     print('# detected coins:', coin_amt, '\npredicted sum:', pred_sum, 'cent', '\ncoin dictionary:', coin_dic)
 
     # generate input picture with circles
-    inp_pic_circles = print_circles_in_pic(inp_pic, circles)
+    inp_pic_circles = print_circles_in_pic(corr_img, circles)
     # generate output pictures with concatinated coins
     conc_output_vector = print_output_coins_conc(output_vector)
 
-    cv.imshow('input pic', inp_pic)
     cv.imshow('inp pic with circles', inp_pic_circles)
     cv.imshow('conc output vector', conc_output_vector)
 
@@ -188,8 +197,8 @@ def print_one_pic_sol(inp_pic):
     cv.destroyAllWindows()
 
 def predict(image):
-    circles = hough_circle_segmentation(image)
-    output_vector = generate_output_vec(image, circles)
+    corrected_image, circles, _ = hough_circle_segmentation(image)
+    output_vector = generate_output_vec(corrected_image, circles)
     coin_amt, pred_sum, coin_dic = get_pred_data(output_vector)
     coin_dic['sum'] = int(pred_sum)
     coin_dic['num_coins'] = coin_amt
@@ -212,7 +221,7 @@ def test_n_input_pic(n):
 
 
 def main():
-    test_n_input_pic(n=2)
+    test_n_input_pic(n=1)
 
 
 if __name__ == "__main__":
