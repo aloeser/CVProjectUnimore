@@ -38,7 +38,6 @@ def random_coin(countries=['Austria', 'Belgium', 'Finland', 'France', 'Germany',
 
     return coin_value, cv.imread(coin_file)
 
-
 def create_bgr_image(height, width, bg=(0,0,0)):
     """
     Creates a image with the given height, width, and background.
@@ -51,7 +50,6 @@ def create_bgr_image(height, width, bg=(0,0,0)):
     img[:, :] = bg
     return img
 
-
 def rotate_pic(inp_pic, phi):
     """
     Rotates an input picture counter-clockwise around its center with an given angle.
@@ -63,7 +61,6 @@ def rotate_pic(inp_pic, phi):
     matrix = cv.getRotationMatrix2D((x / 2, y / 2), phi, 1.0)
     out_pic = cv.warpAffine(inp_pic, matrix, (x, y))
     return out_pic
-
 
 def hough_circle_detection(inp_pic, blur_strgth, hough_dp=1, minRadius=120, maxRadius=130):
     """
@@ -242,15 +239,111 @@ def perform_homographic_transform(retrieval_img, target_shape = None):
     :param target_shape: the shape of the new image
     :return: the transformed image
     """
-    h, w, _ = retrieval_img.shape
+    h, w, ch = retrieval_img.shape
+
+    """
+    initial part from Alex:
+    
     if target_shape is None:
         target_shape = retrieval_img.shape[:2]
     target_h, target_w = target_shape
-
-    pts_src = np.array([[0, 0], [0, w], [h, 0], [h, w]])
-    pts_dst = np.array([[0, 0], [int(0.2*target_w), target_h], [target_w, 0], [int(0.8*target_w), target_h]])
+    pts_src = np.array([[0, 0], [0, h], [w, 0], [w, h]])
+    # pts_dst = np.array([[0, 0], [int(0.2*target_w), target_h], [target_w, 0], [int(0.8*target_w), target_h]])
+    pts_dst = np.array([[0, 0], [int(0.2 * target_w), target_h], [int(0.8 * target_w), 0], [int(target_w), target_h]]) # parallel shift
     h, status = cv.findHomography(pts_src, pts_dst)
     return cv.warpPerspective(retrieval_img, h, (target_w, target_h))
+    """
+
+    """
+    Randomized geometric shift idea:
+    A geometric property of affine mappings is used to calculate the transformation matrix:
+    Namely, it preserves parallelism. Parallelograms are mapped onto parallelograms and never onto arbitrary quadrilaterals.
+    Therefore, three points in any position (not on a straight line!) with their images are sufficient to define an affine mapping.
+    These three points must not be linearly dependent, i.e. not lie on a straight line. (Which should be ensured by the following set parameter intervals.)
+    """
+    # source triangle, (image) corners
+    p1 = [0, 0]              # top left
+    p2 = [(w - 1), 0]        # top right
+    p3 = [0, (h - 1)]        # bottom left
+    p4 = [(w - 1), (h - 1)]  # bottom right (later needed)
+    pnt_list = np.array([p1, p2, p3, p4])
+    src_tri = np.array(pnt_list[0:3]).astype(np.float32)
+    """
+    # distance triangle, corner intervals for point mappings:
+    p1_ = [(0    ,  0.3w) , (0.36h, 0.63h)]
+    p2_ = [(0.69w,     w) , (0    , 0.3 h)]
+    p3_ = [(0.36w, 0.63w) , (0.69h,     h)] 
+    """
+    # pic random values in new triangle corner intervals
+    p1_w = random.uniform(0, 0.3 * w)
+    p1_h = random.uniform(0.36 * h, 0.63 * h)
+    p2_w = random.uniform(0.69 * w, (w-1))
+    p2_h = random.uniform(0, 0.3 * h)
+    p3_w = random.uniform(0.36 * w, 0.63 * w)
+    p3_h = random.uniform(0.69 * h, (h-1))
+
+    # distance triangle (random values from intervals)
+    p1_ = [p1_w, p1_h]
+    p2_ = [p2_w, p2_h]
+    p3_ = [p3_w, p3_h]
+
+    tri_pts = [p1_, p2_, p3_]
+    random.shuffle(tri_pts)
+    dst_tri = np.array(tri_pts).astype(np.float32)
+
+    # get affine transformation matrix 2x3
+    M = cv.getAffineTransform(src_tri, dst_tri) # dst(x,y)=src(M11x+M12y+M13 , M21x+M22y+M23)
+    # containing 2x2 rotation matrix (A) and 2x1 translation vector (b)
+    A = M[:2, :2]
+    b = M[:,2]
+    # print("b:", b)
+
+    # calculate for p1,...,p4 new positions (w,h) mit matrix, e.g.: (10,-15)
+    #                                                         (-10,50)  (280, 60)
+    #                                                             (40, 270)
+    # transformed points of initial corner points
+    p1_new = np.dot(A, p1) + b
+    p2_new = np.dot(A, p2) + b
+    p3_new = np.dot(A, p3) + b
+    p4_new = np.dot(A, p4) + b
+    new_pnt_list = np.array([p1_new, p2_new, p3_new, p4_new])
+    # print("new point list:\n", new_pnt_list)
+
+    # calculate min and max values for corner points in shifted picture
+    min_w = min(new_pnt_list[:, 0])
+    max_w = max(new_pnt_list[:, 0])
+
+    min_h = min(new_pnt_list[:, 1])
+    max_h = max(new_pnt_list[:, 1])
+
+    # update M through adapting b (moving shifted picture in the top/left corners (min values to zero))
+    b -= [min_w, min_h]
+
+    # update max values after M update
+    max_w -= min_w
+    max_h -= min_h
+    max_w = np.ceil(max_w).astype(int)
+    max_h = np.ceil(max_h).astype(int)
+
+    # calculate padding
+    pad_w = np.maximum(max_w - w, 0)
+    pad_h = np.maximum(max_h - h, 0)
+    # pad = np.maximum(pad_w, pad_h) for quadratic padding
+    # print("pad_w, pad_h:", pad_w, pad_h)
+
+    # new sized image where retrieval image fits after transform
+    new_sz = [h + pad_h, w + pad_w, ch]
+    ret_img_pad = np.zeros(new_sz, dtype=np.uint8)
+    ret_img_pad[0:h, 0:w] = retrieval_img
+
+    ## do transform and print with pad or just ROI
+    # ret_img = cv.warpAffine(ret_img_pad, M, (w + pad_w, h + pad_h))
+    ret_img = cv.warpAffine(ret_img_pad, M, (np.ceil(max_w).astype(int), np.ceil(max_h).astype(int)))
+    # print("return image shape:", ret_img.shape)
+
+    # resize all pictures again to input format (not sure about the quality loss here..)
+    #ret_img = resize_pic(ret_img, 256, 256)
+    return ret_img
 
 def get_real_coin_size(coin_value, two_euro_reference_size=64):
     """
@@ -379,7 +472,7 @@ def test_images():
             print("  "  + path)
 
 def main():
-    generate_retrieval_dataset(path='retrieval_dataset', num_images=50, do_homographic_transform=False)
+    generate_retrieval_dataset(path='retrieval_dataset', num_images=50, do_homographic_transform=True)
     #test_images()
 
 if __name__ == "__main__":
