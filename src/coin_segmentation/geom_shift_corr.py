@@ -92,7 +92,6 @@ def corr_pic(shifted_img, blur_strgth):
         # we can simply return the input image itself as "corrected" image
         return shifted_img_grey_blurred, shifted_img, shifted_img_grey_blurred, draw_pic
 
-
     # fitting ellipse to max_contour (blue)
     ellipse = cv.fitEllipse(max_contour)
     #              center coordinates                           scale                         angle

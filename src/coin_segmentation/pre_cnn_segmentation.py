@@ -1,14 +1,10 @@
 import cv2 as cv
 import numpy as np
 import os
-#<<<<<<< HEAD
-from . import cnn_test
-#=======
+
 from . import cnn_test
 from . import geom_shift_corr
-#>>>>>>> coin_segmentation
 
-##
 
 # KEY fct 1 + print
 def hough_circle_segmentation(inp_pic, blur_strgth="low"):
