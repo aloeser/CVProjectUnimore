@@ -85,6 +85,13 @@ def corr_pic(shifted_img, blur_strgth):
     max_contour, cnt_idx = get_max_cnt_idx(contours)
     cv.drawContours(draw_pic, contours, cnt_idx, (0, 255, 0), 2)
 
+    if (len(max_contour) < 5):
+        # if there was no geometric transform applied to the input image, the maximal contour may have only 4 points,
+        # which causes the fitEllipse call to crash, as at least 5 points are expected.
+        # However, since this only happens when no transform was applied (tested with more than 5000 transform-images),
+        # we can simply return the input image itself as "corrected" image
+        return shifted_img_grey_blurred, shifted_img, shifted_img_grey_blurred, draw_pic
+
     # fitting ellipse to max_contour (blue)
     ellipse = cv.fitEllipse(max_contour)
     #              center coordinates                           scale                         angle

@@ -1,10 +1,10 @@
 import cv2 as cv
 import numpy as np
 import os
-import cnn_test
-import geom_shift_corr
 
-##
+from . import cnn_test
+from . import geom_shift_corr
+
 
 # KEY fct 1 + print
 def hough_circle_segmentation(inp_pic, blur_strgth="low"):
@@ -19,20 +19,20 @@ def hough_circle_segmentation(inp_pic, blur_strgth="low"):
     corr_img_grey_blurred, corr_img, shifted_img_grey_blurred, draw_pic = geom_shift_corr.corr_pic(inp_pic, blur_strgth)
 
     # printing pictures
-    cv.imshow("shifted image", inp_pic)
-    cv.imshow('gray/blurred', shifted_img_grey_blurred)
-    cv.imshow('draw pic (contours)', draw_pic)
-    cv.imshow('corr img', corr_img)
+    #cv.imshow("shifted image", inp_pic)
+    #cv.imshow('gray/blurred', shifted_img_grey_blurred)
+    #cv.imshow('draw pic (contours)', draw_pic)
+    #cv.imshow('corr img', corr_img)
     
-    cv.imshow('corr img gray/blurred', corr_img_grey_blurred)
+    #cv.imshow('corr img gray/blurred', corr_img_grey_blurred)
 
     # HoughCircles(image, method, dp, minDist, circles=None, param1=None, param2=None, minRadius=None, maxRadius=None)
     circles = cv.HoughCircles(corr_img_grey_blurred, cv.HOUGH_GRADIENT, dp=1, minDist=20, param1 = 200, param2 = 30, minRadius=0, maxRadius=0)
 
     if (circles is None):
-        print("No circles found.")
+        return corr_img, [], corr_img_grey_blurred
     else:
-        print("Circle/s found.")
+        #print("Circle/s found.")
         circles = np.uint16(np.around(circles))
         return corr_img, circles[0,:], corr_img_grey_blurred
 def print_circles_in_pic(inp_pic, circles):
@@ -92,10 +92,11 @@ def generate_output_vec(inp_pic, circles):
     """
     all_coin_outputs = []
     mask = create_masks(31, 31, 31, 64, 64)[0]  # black background, white circle mask
+
     for (x, y, r) in circles:
-        if r > x or r > y or x + r >= inp_pic.shape[1] or y + r >= inp_pic.shape[0]:
+        if r > x or r > y or x+r >= inp_pic.shape[1] or y+r >= inp_pic.shape[0]:
             continue
-        assert x >= r and y >= r and x + r < inp_pic.shape[1] and y + r < inp_pic.shape[0]
+        assert x >= r and y >= r and x+r < inp_pic.shape[1] and y+r < inp_pic.shape[0]
         curr_coin_area = inp_pic[y-r : y+r, x-r : x+r]                     # select roi (region of interest)
         curr_coin = resize_pic(curr_coin_area)                             # 64 x 64 resize
         curr_coin_output = cv.bitwise_and(curr_coin, curr_coin, mask=mask) # resized roi with black background
@@ -190,6 +191,14 @@ def print_one_pic_sol(inp_pic):
     # window management
     cv.waitKey(0)
     cv.destroyAllWindows()
+
+def predict(image):
+    corrected_image, circles, _ = hough_circle_segmentation(image)
+    output_vector = generate_output_vec(corrected_image, circles)
+    coin_amt, pred_sum, coin_dic = get_pred_data(output_vector)
+    coin_dic['sum'] = int(pred_sum)
+    coin_dic['num_coins'] = coin_amt
+    return coin_dic
 
 # PRINT (n pic)
 def test_n_input_pic(n):

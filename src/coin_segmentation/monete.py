@@ -55,7 +55,7 @@ class MoNETe(nn.Module):
             nn.Linear(512, num_classes)
         )
         if load_pretrained:
-            checkpoint = torch.load(load_pretrained)
+            checkpoint = torch.load(load_pretrained, map_location='cpu')
             model_state_name = model_state_name if model_state_name else 'model_state_dict'
             self.load_state_dict(checkpoint[model_state_name])
 
