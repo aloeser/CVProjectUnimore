@@ -50,7 +50,7 @@ def main():
     generator_parser = subparsers.add_parser('generate')
     generator_parser.add_argument('--path', help='path where the generated retrieval database is stored', default='retrieval_database')
     generator_parser.add_argument('-n', '--num_images', type=int, default=200)
-    generator_parser.add_argument('--homographic_transform', action='store_true')
+    generator_parser.add_argument('--do_transform', action='store_true')
     generator_parser.add_argument('--annotate_only', action='store_true')
 
     retrieval_parser = subparsers.add_parser('run')
@@ -67,7 +67,7 @@ def main():
     args = parser.parse_args()
 
     if args.subparser_name == "generate":
-        generate_retrieval_database(path=args.path, num_images=args.num_images, homographic_transform=args.homographic_transform, annotate_only=args.annotate_only)
+        generate_retrieval_database(path=args.path, num_images=args.num_images, homographic_transform=args.do_transform, annotate_only=args.annotate_only)
     elif args.subparser_name == "run":
         perform_retrieval(file=args.input, retrieval_database_path=args.retrieval_database_path, first_k=args.first_k, dont_show_output=args.dont_show_output)
     else:
